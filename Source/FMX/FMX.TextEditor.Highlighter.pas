@@ -26,6 +26,7 @@ type
     FComments: TTextEditorHighlighterComments;
     FCompletionProposalSkipRegions: TTextEditorSkipRegions;
     FEditor: TControl;
+    FEncoded: Boolean;
     FEndOfLine: Boolean;
     FExcludedWordBreakCharacters: TTextEditorCharSet;
     FFoldCloseKeyChars: TTextEditorCharSet;
@@ -59,21 +60,27 @@ type
     FToken: TTextEditorToken;
     FTokenPosition: Integer;
     function GetLoad: TFileName;
+    function IsJSONStored: Boolean;
     procedure AddAllAttributes(const ARange: TTextEditorRange);
     procedure AddKeywords(const AKeywords: TStringList);
     procedure FreeTemporaryTokens;
+    procedure ReadEncodedJSON(AReader: TReader);
     procedure SetJSON(const AValue: TStrings);
     procedure SetLoad(const AFileName: TFileName);
     procedure UpdateAttributes(const ARange: TTextEditorRange; const AParentRange: TTextEditorRange); overload;
+    procedure WriteEncodedJSON(AWriter: TWriter);
   protected
     function GetAttribute(const AIndex: Integer): TTextEditorHighlighterAttribute;
     procedure AddAttribute(const AHighlighterAttribute: TTextEditorHighlighterAttribute);
+    procedure DefineProperties(AFiler: TFiler); override;
     procedure Prepare;
     procedure Reset;
     procedure SetCodeFoldingRangeCount(const AValue: Integer);
   public
     constructor Create(AOwner: TControl);
     destructor Destroy; override;
+    class function DecodeText(const AText: string): string;
+    class function EncodeText(const AText: string): string;
     function InCodeFoldingVoidElements(const AName: string): Boolean;
     function RangeAttribute: TTextEditorHighlighterAttribute;
     function TokenAttribute: TTextEditorHighlighterAttribute;
@@ -135,7 +142,8 @@ type
     property SkipOpenKeyChars: TTextEditorCharSet read FSkipOpenKeyChars write FSkipOpenKeyChars;
     property TokenPosition: Integer read FTokenPosition;
   published
-    property JSON: TStrings read FJSON write SetJSON;
+    property Encoded: Boolean read FEncoded write FEncoded default False;
+    property JSON: TStrings read FJSON write SetJSON stored IsJSONStored;
     property Load: TFileName read GetLoad write SetLoad stored False;
   end;
 
@@ -156,7 +164,8 @@ type
 implementation
 
 uses
-  System.Types, FMX.TextEditor, FMX.TextEditor.Highlighter.Import.JSON, FMX.TextEditor.Language, FMX.TextEditor.Utils;
+  System.NetEncoding, System.Types, System.ZLib, FMX.TextEditor, FMX.TextEditor.Highlighter.Import.JSON,
+  FMX.TextEditor.Language, FMX.TextEditor.Utils;
 
 { TTextEditorHighlighter }
 
@@ -170,6 +179,7 @@ begin
   FChanged := False;
   FCodeFoldingRangeCount := 0;
   FEditor := AOwner;
+  FEncoded := False;
   FEndOfLine := False;
   FExcludedWordBreakCharacters := [];
   FLoaded := False;
@@ -263,7 +273,10 @@ procedure TTextEditorHighlighter.Assign(ASource: TPersistent);
 begin
   if Assigned(ASource) and (ASource is TTextEditorHighlighter) then
   with ASource as TTextEditorHighlighter do
-    Self.FJSON.Assign(FJSON)
+  begin
+    Self.FEncoded := FEncoded;
+    Self.FJSON.Assign(FJSON);
+  end
   else
     inherited Assign(ASource);
 end;
@@ -330,6 +343,58 @@ begin
   finally
     LFileStream.Free;
   end;
+end;
+
+class function TTextEditorHighlighter.EncodeText(const AText: string): string;
+var
+  LCompressed: TBytes;
+begin
+  ZCompress(TEncoding.UTF8.GetBytes(AText), LCompressed);
+
+  var LBase64 := TBase64Encoding.Create(0);
+  try
+    Result := LBase64.EncodeBytesToString(LCompressed);
+  finally
+    LBase64.Free;
+  end;
+end;
+
+class function TTextEditorHighlighter.DecodeText(const AText: string): string;
+var
+  LBytes, LDecompressed: TBytes;
+begin
+  var LBase64 := TBase64Encoding.Create(0);
+  try
+    LBytes := LBase64.DecodeStringToBytes(Trim(AText));
+  finally
+    LBase64.Free;
+  end;
+
+  ZDecompress(LBytes, LDecompressed);
+
+  Result := TEncoding.UTF8.GetString(LDecompressed);
+end;
+
+function TTextEditorHighlighter.IsJSONStored: Boolean;
+begin
+  Result := not FEncoded;
+end;
+
+procedure TTextEditorHighlighter.DefineProperties(AFiler: TFiler);
+begin
+  inherited DefineProperties(AFiler);
+
+  AFiler.DefineProperty('EncodedJSON', ReadEncodedJSON, WriteEncodedJSON, FEncoded and (FJSON.Count > 0));
+end;
+
+procedure TTextEditorHighlighter.ReadEncodedJSON(AReader: TReader);
+begin
+  FJSON.Text := DecodeText(AReader.ReadString);
+end;
+
+procedure TTextEditorHighlighter.WriteEncodedJSON(AWriter: TWriter);
+begin
+  AWriter.WriteString(EncodeText(FJSON.Text));
 end;
 
 procedure TTextEditorHighlighter.FreeTemporaryTokens;
