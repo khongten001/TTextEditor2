@@ -7,8 +7,8 @@ uses
   Vcl.ActnMan, Vcl.ActnMenus, Vcl.BaseImageCollection, Vcl.Buttons, Vcl.ComCtrls, Vcl.Controls, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.Forms,
   Vcl.ImageCollection, Vcl.ImgList, Vcl.Menus, Vcl.PlatformDefaultStyleActnCtrls, Vcl.ToolWin, Vcl.VirtualImageList,
   MyControl.ObjectInspector, TextEditor, TextEditor.Compare.ScrollBar, TextEditor.MacroRecorder, TextEditor.Print,
-  TextEditor.Print.Preview, TextEditor.Types, TTextEditorDemo.Frame.PrintPreview, TTextEditorDemo.Frame.TextCompare,
-  TTextEditorDemo.Frame.TextEditor;
+  TextEditor.Print.Preview, TextEditor.Types, TTextEditorDemo.Frame.PrintPreview, TTextEditorDemo.Frame.SyncEditors,
+  TTextEditorDemo.Frame.TextCompare, TTextEditorDemo.Frame.TextEditor;
 
 type
   TMainForm = class(TForm)
@@ -39,6 +39,7 @@ type
     ActionToolBar1: TActionToolBar;
     ActionViewDarkTheme: TAction;
     ActionViewPrintPreview: TAction;
+    ActionViewSyncEditors: TAction;
     ActionViewTextCompare: TAction;
     ActionViewTextEditor: TAction;
     ImageCollection: TImageCollection;
@@ -58,6 +59,7 @@ type
     SaveDialogHTML: TSaveDialog;
     SpeedButtonDarkTheme: TSpeedButton;
     SpeedButtonPrintPreview: TSpeedButton;
+    SpeedButtonSyncEditors: TSpeedButton;
     SpeedButtonTextCompare: TSpeedButton;
     SpeedButtonTextEditor: TSpeedButton;
     StatusBar: TStatusBar;
@@ -95,6 +97,7 @@ type
   private
     FFileName: string;
     FFramePrintPreview: TFramePrintPreview;
+    FFrameSyncEditors: TFrameSyncEditors;
     FFrameTextCompare: TFrameTextCompare;
     FFrameTextEditor: TFrameTextEditor;
     FIsCustomStyleActive: Boolean;
@@ -185,6 +188,8 @@ begin
   FFrameTextEditor.TextEditor.Highlighter.LoadFromFile(LFileName);
   FFrameTextCompare.EditorCompareLeft.Highlighter.LoadFromFile(LFileName);
   FFrameTextCompare.EditorCompareRight.Highlighter.LoadFromFile(LFileName);
+  FFrameSyncEditors.EditorLeft.Highlighter.LoadFromFile(LFileName);
+  FFrameSyncEditors.EditorRight.Highlighter.LoadFromFile(LFileName);
 
   if FFileName.IsEmpty then
     FFrameTextEditor.TextEditor.Lines.Text := FFrameTextEditor.TextEditor.Highlighter.Sample;
@@ -201,6 +206,8 @@ begin
   FFrameTextEditor.TextEditor.Highlighter.Colors.LoadFromFile(LFileName);
   FFrameTextCompare.EditorCompareLeft.Highlighter.Colors.LoadFromFile(LFileName);
   FFrameTextCompare.EditorCompareRight.Highlighter.Colors.LoadFromFile(LFileName);
+  FFrameSyncEditors.EditorLeft.Highlighter.Colors.LoadFromFile(LFileName);
+  FFrameSyncEditors.EditorRight.Highlighter.Colors.LoadFromFile(LFileName);
 
   FFrameTextCompare.CompareScrollBar.Invalidate;
 
@@ -307,6 +314,11 @@ begin
   FFramePrintPreview := TFramePrintPreview.Create(Self);
   FFramePrintPreview.Visible := False;
   FFramePrintPreview.Parent := PanelMain;
+
+  { Sync editors }
+  FFrameSyncEditors := TFrameSyncEditors.Create(Self);
+  FFrameSyncEditors.Visible := False;
+  FFrameSyncEditors.Parent := PanelMain;
 end;
 
 procedure TMainForm.InitializeHighlightersAndThemes;
@@ -600,11 +612,17 @@ begin
         InspectObject(FFramePrintPreview.PrintPreview);
         SpeedButtonPrintPreview.Down := True;
       end;
+    3:
+      begin
+        InspectObject(FFrameSyncEditors.EditorLeft);
+        SpeedButtonSyncEditors.Down := True;
+      end;
   end;
 
   FFrameTextEditor.Visible := LTag = 0;
   FFrameTextCompare.Visible := LTag = 1;
   FFramePrintPreview.Visible := LTag = 2;
+  FFrameSyncEditors.Visible := LTag = 3;
 end;
 
 procedure TMainForm.UpdatePosition;

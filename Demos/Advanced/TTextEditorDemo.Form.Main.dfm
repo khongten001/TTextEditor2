@@ -97,6 +97,24 @@ object MainForm: TMainForm
       Layout = blGlyphTop
       ParentFont = False
     end
+    object SpeedButtonSyncEditors: TSpeedButton
+      Left = 0
+      Top = 183
+      Width = 68
+      Height = 61
+      Action = ActionViewSyncEditors
+      Align = alTop
+      GroupIndex = 1
+      Images = VirtualImageList
+      Flat = True
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -9
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      Layout = blGlyphTop
+      ParentFont = False
+    end
   end
   object PanelMain: TPanel
     Left = 68
@@ -474,6 +492,15 @@ object MainForm: TMainForm
       GroupIndex = 1
       ImageIndex = 2
       ImageName = 'icons8-view'
+      OnExecute = ActionViewExecute
+    end
+    object ActionViewSyncEditors: TAction
+      Tag = 3
+      AutoCheck = True
+      Caption = 'Sync Editors'
+      GroupIndex = 1
+      ImageIndex = 1
+      ImageName = 'icons8-compare'
       OnExecute = ActionViewExecute
     end
     object ActionViewDarkTheme: TAction

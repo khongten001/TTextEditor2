@@ -7,6 +7,7 @@ uses
   MyControl.ObjectInspector in 'MyControl.ObjectInspector.pas',
   TTextEditorDemo.Form.Main in 'TTextEditorDemo.Form.Main.pas' {MainForm},
   TTextEditorDemo.Frame.PrintPreview in 'TTextEditorDemo.Frame.PrintPreview.pas' {FramePrintPreview: TFrame},
+  TTextEditorDemo.Frame.SyncEditors in 'TTextEditorDemo.Frame.SyncEditors.pas' {FrameSyncEditors: TFrame},
   TTextEditorDemo.Frame.TextCompare in 'TTextEditorDemo.Frame.TextCompare.pas' {FrameTextCompare: TFrame},
   TTextEditorDemo.Frame.TextEditor in 'TTextEditorDemo.Frame.TextEditor.pas' {FrameTextEditor: TFrame};
 

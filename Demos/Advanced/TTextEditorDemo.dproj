@@ -139,6 +139,10 @@
             <FormType>dfm</FormType>
             <DesignClass>TFrame</DesignClass>
         </DCCReference>
+        <DCCReference Include="TTextEditorDemo.Frame.SyncEditors.pas">
+            <Form>FrameSyncEditors</Form>
+            <DesignClass>TFrame</DesignClass>
+        </DCCReference>
         <DCCReference Include="TTextEditorDemo.Frame.TextCompare.pas">
             <Form>FrameTextCompare</Form>
             <DesignClass>TFrame</DesignClass>
