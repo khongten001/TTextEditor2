@@ -1,0 +1,470 @@
+{
+  "Highlighter": {
+    "Sample": [
+      "// Hello, World! in G#\r\n",
+      "\r\n",
+      "package Hello\r\n",
+      "import System\r\n",
+      "\r\n",
+      "func greet(name string) string {\r\n",
+      "    return \"Hello, ${name}!\"\r\n",
+      "}\r\n",
+      "\r\n",
+      "Console.WriteLine(greet(\"world\"))"
+    ],
+    "MainRules": {
+      "Attributes": {
+        "Element": "Editor"
+      },
+      "SubRules": {
+        "Range": [
+          {
+            "Type": "BlockComment",
+            "Attributes": {
+              "Element": "Comment"
+            },
+            "TokenRange": {
+              "Open": "/*",
+              "Close": "*/"
+            }
+          },
+          {
+            "Type": "LineComment",
+            "Attributes": {
+              "Element": "Comment"
+            },
+            "Properties": {
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "//"
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "Properties": {
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "'",
+              "Close": "'"
+            },
+            "SubRules": {
+              "Range": [
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "String"
+                  },
+                  "Properties": {
+                    "CloseOnEndOfLine": true,
+                    "CloseOnTerm": true
+                  },
+                  "TokenRange": {
+                    "Open": "\\'",
+                    "Close": ""
+                  }
+                },
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "String"
+                  },
+                  "Properties": {
+                    "CloseOnEndOfLine": true,
+                    "CloseOnTerm": true
+                  },
+                  "TokenRange": {
+                    "Open": "\\\\",
+                    "Close": ""
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "Properties": {
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "\"",
+              "Close": "\""
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "TokenRange": {
+              "Open": "`",
+              "Close": "`"
+            }
+          },
+          {
+            "Type": "Number",
+            "Attributes": {
+              "Element": "Number"
+            },
+            "Properties": {
+              "CloseOnTerm": true,
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "0",
+              "OpenBreakType": "Term"
+            }
+          },
+          {
+            "Type": "HexNumber",
+            "Attributes": {
+              "Element": "HexNumber"
+            },
+            "AllowedCharacters": "0123456789abcdefABCDEF_lLuU",
+            "Properties": {
+              "CloseOnTerm": true,
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "0x",
+              "OpenBreakType": "Any"
+            }
+          },
+          {
+            "Type": "HexNumber",
+            "Attributes": {
+              "Element": "HexNumber"
+            },
+            "AllowedCharacters": "01_lLuU",
+            "Properties": {
+              "CloseOnTerm": true,
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "0b",
+              "OpenBreakType": "Any"
+            }
+          },
+          {
+            "Type": "HexNumber",
+            "Attributes": {
+              "Element": "HexNumber"
+            },
+            "AllowedCharacters": "01234567_lLuU",
+            "Properties": {
+              "CloseOnTerm": true,
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "0o",
+              "OpenBreakType": "Any"
+            }
+          }
+        ],
+        "KeyList": [
+          {
+            "Type": "ReservedWord",
+            "Words": [
+              "add",
+              "and",
+              "as",
+              "async",
+              "await",
+              "base",
+              "break",
+              "case",
+              "catch",
+              "chan",
+              "checked",
+              "class",
+              "const",
+              "continue",
+              "convenience",
+              "data",
+              "default",
+              "defer",
+              "deinit",
+              "delegate",
+              "do",
+              "else",
+              "enum",
+              "event",
+              "explicit",
+              "fallthrough",
+              "false",
+              "finally",
+              "fixed",
+              "for",
+              "func",
+              "get",
+              "go",
+              "goto",
+              "guard",
+              "if",
+              "implicit",
+              "import",
+              "in",
+              "init",
+              "inline",
+              "interface",
+              "internal",
+              "is",
+              "let",
+              "lock",
+              "make",
+              "map",
+              "nameof",
+              "nil",
+              "not",
+              "open",
+              "operator",
+              "or",
+              "out",
+              "override",
+              "package",
+              "params",
+              "private",
+              "prop",
+              "protected",
+              "public",
+              "raise",
+              "range",
+              "ref",
+              "remove",
+              "return",
+              "scope",
+              "scoped",
+              "sealed",
+              "select",
+              "sequence",
+              "set",
+              "shared",
+              "stackalloc",
+              "struct",
+              "switch",
+              "this",
+              "throw",
+              "true",
+              "try",
+              "type",
+              "typeof",
+              "unchecked",
+              "unmanaged",
+              "unsafe",
+              "using",
+              "var",
+              "when",
+              "while",
+              "with",
+              "yield"
+            ],
+            "Attributes": {
+              "Element": "ReservedWord"
+            }
+          },
+          {
+            "Type": "Attribute",
+            "Words": [
+              "bool",
+              "byte",
+              "char",
+              "decimal",
+              "double",
+              "float",
+              "float32",
+              "float64",
+              "int",
+              "int16",
+              "int32",
+              "int64",
+              "int8",
+              "long",
+              "nint",
+              "nuint",
+              "object",
+              "sbyte",
+              "short",
+              "string",
+              "uint",
+              "uint16",
+              "uint32",
+              "uint64",
+              "uint8",
+              "ulong",
+              "ushort",
+              "void"
+            ],
+            "Attributes": {
+              "Element": "Attribute"
+            }
+          },
+          {
+            "Type": "Symbol",
+            "Words": [
+              "!",
+              "%",
+              "&",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "?",
+              "@",
+              "[",
+              "]",
+              "^",
+              "{",
+              "|",
+              "}",
+              "~"
+            ],
+            "Attributes": {
+              "Element": "Symbol"
+            }
+          }
+        ],
+        "Set": [
+          {
+            "Type": "Number",
+            "Symbols": ".0123456789",
+            "Attributes": {
+              "Element": "Number"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "CodeFolding": {
+    "Ranges": [
+      {
+        "Options": {
+          "StringEscapeChar": "\\"
+        },
+        "SkipRegion": [
+          {
+            "OpenToken": "'",
+            "CloseToken": "'",
+            "RegionType": "SingleLineString"
+          },
+          {
+            "OpenToken": "\"",
+            "CloseToken": "\"",
+            "RegionType": "SingleLineString"
+          },
+          {
+            "OpenToken": "`",
+            "CloseToken": "`",
+            "RegionType": "MultiLine"
+          },
+          {
+            "OpenToken": "//",
+            "RegionType": "SingleLine"
+          },
+          {
+            "OpenToken": "/*",
+            "CloseToken": "*/",
+            "RegionType": "MultiLine"
+          }
+        ],
+        "FoldRegion": [
+          {
+            "OpenToken": "{",
+            "CloseToken": "}",
+            "Properties": {
+              "BreakCharFollows": false
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "KeywordImages": {
+    "Items": [
+      {
+        "Word": "continue",
+        "Image": "ArrowUp"
+      },
+      {
+        "Word": "break",
+        "Image": "ArrowDown"
+      },
+      {
+        "Word": "return",
+        "Image": "ArrowDown"
+      }
+    ]
+  },
+  "MatchingPair": {
+    "Pairs": [
+      {
+        "OpenToken": "'",
+        "CloseToken": "'"
+      },
+      {
+        "OpenToken": "\"",
+        "CloseToken": "\""
+      },
+      {
+        "OpenToken": "`",
+        "CloseToken": "`"
+      },
+      {
+        "OpenToken": "(",
+        "CloseToken": ")"
+      },
+      {
+        "OpenToken": "[",
+        "CloseToken": "]"
+      },
+      {
+        "OpenToken": "{",
+        "CloseToken": "}"
+      }
+    ]
+  },
+  "CompletionProposal": {
+    "SkipRegion": [
+      {
+        "OpenToken": "'",
+        "CloseToken": "'",
+        "RegionType": "SingleLineString"
+      },
+      {
+        "OpenToken": "\"",
+        "CloseToken": "\"",
+        "RegionType": "SingleLineString"
+      },
+      {
+        "OpenToken": "`",
+        "CloseToken": "`",
+        "RegionType": "MultiLine"
+      },
+      {
+        "OpenToken": "//",
+        "RegionType": "SingleLine"
+      },
+      {
+        "OpenToken": "/*",
+        "CloseToken": "*/",
+        "RegionType": "MultiLine"
+      }
+    ]
+  }
+}
