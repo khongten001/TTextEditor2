@@ -30,7 +30,7 @@ implementation
 {$R *.dfm}
 
 uses
-  System.Generics.Collections, System.Math, TextEditor.Lines, TextEditor.Types;
+  System.Generics.Collections, System.Hash, System.Math, TextEditor.Lines, TextEditor.Types;
 
 type
   TCompareRow = (crSame, crModify, crLeftOnly, crRightOnly);
@@ -175,17 +175,6 @@ var
   LIndexLeft, LIndexRight: Integer;
   LLeftRun, LRightRun: Integer;
 
-  function HashLine(const ALine: string): Cardinal;
-  const
-    FNV_OFFSET_BASIS = 2166136261;
-    FNV_PRIME = 16777619;
-  begin
-    Result := FNV_OFFSET_BASIS;
-
-    for var LIndex := 1 to ALine.Length do
-      Result := (Result xor Cardinal(Ord(ALine[LIndex]))) * FNV_PRIME;
-  end;
-
   procedure AddPendingRows;
   begin
     while (LLeftRun > 0) and (LRightRun > 0) do
@@ -220,12 +209,12 @@ begin
     SetLength(LHashesLeft, LCountLeft);
 
     for var LIndex := 0 to LCountLeft - 1 do
-      LHashesLeft[LIndex] := HashLine(EditorCompareLeft.Lines[LIndex]);
+      LHashesLeft[LIndex] := Cardinal(THashFNV1a32.GetHashValue(EditorCompareLeft.Lines[LIndex]));
 
     SetLength(LHashesRight, LCountRight);
 
     for var LIndex := 0 to LCountRight - 1 do
-      LHashesRight[LIndex] := HashLine(EditorCompareRight.Lines[LIndex]);
+      LHashesRight[LIndex] := Cardinal(THashFNV1a32.GetHashValue(EditorCompareRight.Lines[LIndex]));
 
     SetLength(LLcs, LCountLeft + 1, LCountRight + 1);
 

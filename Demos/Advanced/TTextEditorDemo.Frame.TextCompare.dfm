@@ -54,6 +54,7 @@ object FrameTextCompare: TFrameTextCompare
       Align = alClient
       Border.Color = 9471874
       Border.ColoredEdges = [ebLeft, ebTop, ebRight, ebBottom]
+      EditorMode = emCompare
       LeftMargin.Width = 57
       OnAfterLinePaint = EditorCompareAfterLinePaint
       OnChange = EditorCompareChange
@@ -70,6 +71,7 @@ object FrameTextCompare: TFrameTextCompare
       Align = alClient
       Border.Color = 9471874
       Border.ColoredEdges = [ebLeft, ebTop, ebRight, ebBottom]
+      EditorMode = emCompare
       LeftMargin.Width = 57
       OnAfterLinePaint = EditorCompareAfterLinePaint
       OnChange = EditorCompareChange
