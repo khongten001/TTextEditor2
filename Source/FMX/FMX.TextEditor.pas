@@ -3699,6 +3699,9 @@ begin
   if not Assigned(Parent) or FLines.Streaming or FHighlighter.Loading then
     Exit;
 
+  if FLines.Updating and not AReset then
+    Exit;
+
   if FLineNumbers.ResetCache or AReset then
   begin
     FLineNumbers.ResetCache := False;
@@ -3940,9 +3943,6 @@ begin
 
   if LLength < AViewPosition.Column then
     Result.X := Result.X + (AViewPosition.Column - LLength - 1) * FPaintHelper.CharWidth;
-
-  if not FWordWrap.Active then
-    Result.X := MeasureSimpleTextWidth(Copy(LLineText, 1, AViewPosition.Column - 1));
 
   Result.X := Result.X + FLeftMarginWidth - FScrollHelper.HorizontalPosition;
 end;

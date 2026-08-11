@@ -23,7 +23,15 @@ type
     FCharWidth: Single;
     FFixedSizeFont: Boolean;
     FMeasureBitmap: TBitmap;
+    FMeasureCache: array [TTextEditorStockFontPatterns] of record
+      Valid: Boolean;
+      CharWidth: Single;
+      CharHeight: Single;
+      FixedSizeFont: Boolean;
+    end;
     function GetFontHandle: HFont;
+    function StyleIndex(const AStyle: TFontStyles): Integer;
+    procedure InvalidateMeasureCache;
     procedure MeasureFont;
   protected
     function GetCharHeight: Single;
@@ -57,6 +65,8 @@ type
     FLastFontStyle: TFontStyles;
     FLastFontValid: Boolean;
     FStockBitmap: TBitmap;
+    FStockStyle: TFontStyles;
+    FStockStyleValid: Boolean;
   protected
     property DrawingCount: Integer read FDrawingCount;
   public
@@ -124,11 +134,41 @@ begin
   Result := nil;
 end;
 
+function TTextEditorFontStock.StyleIndex(const AStyle: TFontStyles): Integer;
+var
+  LStyle: TFontStyle;
+begin
+  Result := 0;
+
+  for LStyle := Low(TFontStyle) to High(TFontStyle) do
+  if LStyle in AStyle then
+    Result := Result or 1 shl Ord(LStyle);
+end;
+
+procedure TTextEditorFontStock.InvalidateMeasureCache;
+var
+  LIndex: Integer;
+begin
+  for LIndex := Low(FMeasureCache) to High(FMeasureCache) do
+    FMeasureCache[LIndex].Valid := False;
+end;
+
 procedure TTextEditorFontStock.MeasureFont;
 var
   LWidth1: Single;
   LWidth2: Single;
+  LIndex: Integer;
 begin
+  LIndex := StyleIndex(FBaseFont.Style);
+
+  if FMeasureCache[LIndex].Valid then
+  begin
+    FCharWidth := FMeasureCache[LIndex].CharWidth;
+    FCharHeight := FMeasureCache[LIndex].CharHeight;
+    FFixedSizeFont := FMeasureCache[LIndex].FixedSizeFont;
+    Exit;
+  end;
+
   FCharWidth := 8;
   FCharHeight := 12;
   FFixedSizeFont := True;
@@ -144,6 +184,11 @@ begin
       FCharWidth := FMeasureBitmap.Canvas.TextWidth(' ');
       FCharHeight := Round(FMeasureBitmap.Canvas.TextHeight('W'));
       FFixedSizeFont := SameValue(LWidth1, LWidth2);
+
+      FMeasureCache[LIndex].CharWidth := FCharWidth;
+      FMeasureCache[LIndex].CharHeight := FCharHeight;
+      FMeasureCache[LIndex].FixedSizeFont := FFixedSizeFont;
+      FMeasureCache[LIndex].Valid := True;
     finally
       FMeasureBitmap.Canvas.EndScene;
     end;
@@ -162,6 +207,7 @@ begin
   if Assigned(AValue) then
   begin
     FBaseFont.Assign(AValue);
+    InvalidateMeasureCache;
     MeasureFont;
   end
   else
@@ -170,6 +216,9 @@ end;
 
 procedure TTextEditorFontStock.SetStyle(const AValue: TFontStyles);
 begin
+  if FBaseFont.Style = AValue then
+    Exit;
+
   FBaseFont.Style := AValue;
   MeasureFont;
 end;
@@ -228,6 +277,7 @@ begin
       try
         FStockBitmap.Canvas.Font.Assign(AValue);
         FStockBitmap.Canvas.Font.Style := [];
+        FStockStyleValid := False;
       finally
         FStockBitmap.Canvas.EndScene;
       end;
@@ -261,19 +311,14 @@ end;
 
 procedure TTextEditorPaintHelper.SetStyle(const AValue: TFontStyles);
 begin
+  if FStockStyleValid and (FStockStyle = AValue) and (FFontStock.BaseFont.Style = AValue) then
+    Exit;
+
   FFontStock.SetStyle(AValue);
 
-  try
-    if FStockBitmap.Canvas.BeginScene then
-    try
-      FStockBitmap.Canvas.Font.Style := AValue;
-    finally
-      FStockBitmap.Canvas.EndScene;
-    end;
-  except
-    on ECanvasException do
-      ;
-  end;
+  FStockBitmap.Canvas.Font.Style := AValue;
+  FStockStyle := AValue;
+  FStockStyleValid := True;
 end;
 
 procedure TTextEditorPaintHelper.SetForegroundColor(const AValue: TAlphaColor);
