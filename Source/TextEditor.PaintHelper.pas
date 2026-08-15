@@ -176,15 +176,19 @@ begin
 end;
 
 destructor TTextEditorFontsInfoManager.Destroy;
+var
+  LSharedFontsInfo: PTextEditorSharedFontsInfo;
 begin
   GFontsInfoManager := nil;
 
   if Assigned(FFontsInfo) then
   begin
-    while FFontsInfo.Count > 0 do
+    for var LIndex := FFontsInfo.Count - 1 downto 0 do
     begin
-      Assert(1 = PTextEditorSharedFontsInfo(FFontsInfo[FFontsInfo.Count - 1])^.RefCount);
-      ReleaseFontsInfo(PTextEditorSharedFontsInfo(FFontsInfo[FFontsInfo.Count - 1]));
+      LSharedFontsInfo := PTextEditorSharedFontsInfo(FFontsInfo[LIndex]);
+      DestroyFontHandles(LSharedFontsInfo);
+      LSharedFontsInfo^.BaseFont.Free;
+      Dispose(LSharedFontsInfo);
     end;
 
     FFontsInfo.Free;
@@ -396,28 +400,27 @@ end;
 
 procedure TTextEditorFontStock.ReleaseFontHandles;
 begin
-  if FUsingFontHandles then
-  with GFontsInfoManager do
-  begin
-    UnlockFontsInfo(FSharedFontsInfo);
-    FUsingFontHandles := False;
-  end;
+  if FUsingFontHandles and Assigned(GFontsInfoManager) then
+    GFontsInfoManager.UnlockFontsInfo(FSharedFontsInfo);
+
+  FUsingFontHandles := False;
 end;
 
 procedure TTextEditorFontStock.ReleaseFontsInfo;
 begin
-  if Assigned(FSharedFontsInfo) then
-  with GFontsInfoManager do
+  if not Assigned(FSharedFontsInfo) then
+    Exit;
+
+  if Assigned(GFontsInfoManager) then
   begin
     if FUsingFontHandles then
-    begin
-      UnlockFontsInfo(FSharedFontsInfo);
-      FUsingFontHandles := False;
-    end;
+      GFontsInfoManager.UnlockFontsInfo(FSharedFontsInfo);
 
-    ReleaseFontsInfo(FSharedFontsInfo);
-    FSharedFontsInfo := nil;
+    GFontsInfoManager.ReleaseFontsInfo(FSharedFontsInfo);
   end;
+
+  FUsingFontHandles := False;
+  FSharedFontsInfo := nil;
 end;
 
 procedure TTextEditorFontStock.SetBaseFont(const AValue: TFont);
@@ -494,10 +497,9 @@ end;
 
 procedure TTextEditorFontStock.UseFontHandles;
 begin
-  if not FUsingFontHandles then
-  with GFontsInfoManager do
+  if not FUsingFontHandles and Assigned(GFontsInfoManager) then
   begin
-    LockFontsInfo(FSharedFontsInfo);
+    GFontsInfoManager.LockFontsInfo(FSharedFontsInfo);
     FUsingFontHandles := True;
   end;
 end;
