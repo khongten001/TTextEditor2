@@ -1343,6 +1343,8 @@ begin
       GHintWindow.DoubleBuffered := True;
   end;
 
+  GHintWindow.HandleNeeded;
+
   if GHintWindow is TTextEditorHintWindow then
   begin
     GHintWindow.Font.Assign(AEditor.Fonts.Hint);
@@ -1354,7 +1356,7 @@ end;
 
 procedure HideHintWindow;
 begin
-  if Assigned(GHintWindow) then
+  if Assigned(GHintWindow) and GHintWindow.HandleAllocated then
     ShowWindow(GHintWindow.Handle, SW_HIDE);
 end;
 
