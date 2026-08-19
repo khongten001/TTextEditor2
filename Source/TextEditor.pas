@@ -18,7 +18,7 @@ uses
   TextEditor.SpecialChars, TextEditor.SyncEdit, TextEditor.Tabs, TextEditor.Types, TextEditor.Undo, TextEditor.Undo.List,
   TextEditor.UnknownChars, TextEditor.Utils, TextEditor.WordWrap
 {$IFDEF ALPHASKINS}
-  , acSBUtils, sCommonData
+  , acAlphaHints, acSBUtils, sCommonData
 {$ENDIF}
 {$IFDEF TEXT_EDITOR_SPELL_CHECK}
   , TextEditor.SpellCheck
@@ -1359,6 +1359,22 @@ begin
   if Assigned(GHintWindow) and GHintWindow.HandleAllocated then
     ShowWindow(GHintWindow.Handle, SW_HIDE);
 end;
+
+{$IFDEF ALPHASKINS}
+type
+  TTextEditorAlphaHintWindow = class(TacCustomHintWindow);
+
+procedure CompensateHintShadow(const AHintWindow: THintWindow; var ARect: TRect);
+var
+  LShadowSizes: TRect;
+begin
+  if Assigned(acAlphaHints.Manager) and (AHintWindow is TacCustomHintWindow) then
+  begin
+    LShadowSizes := TTextEditorAlphaHintWindow(AHintWindow).ShadowSizes;
+    OffsetRect(ARect, LShadowSizes.Left + LShadowSizes.Right, 0);
+  end;
+end;
+{$ENDIF}
 
 { TTextEditorHintWindow }
 
@@ -11241,6 +11257,9 @@ begin
               LScrollHintPoint := ClientToScreen(Point(ClientRect.Right - LScrollHintRect.Right - 4, 4));
 
             OffsetRect(LScrollHintRect, LScrollHintPoint.X, LScrollHintPoint.Y);
+{$IFDEF ALPHASKINS}
+            CompensateHintShadow(LScrollHintWindow, LScrollHintRect);
+{$ENDIF}
             LScrollHintWindow.ActivateHint(LScrollHintRect, LScrollHint);
             LScrollHintWindow.Update;
           end;
@@ -13455,6 +13474,9 @@ begin
   LPoint := ClientToScreen(Point(ClientRect.Right - LRect.Right - 4, FRuler.Height + 4));
 
   OffsetRect(LRect, LPoint.X, LPoint.Y);
+{$IFDEF ALPHASKINS}
+  CompensateHintShadow(LHintWindow, LRect);
+{$ENDIF}
   LHintWindow.ActivateHint(LRect, LPositionText);
   LHintWindow.Invalidate;
 
@@ -13474,6 +13496,9 @@ begin
   LPoint := ClientToScreen(Point(ClientRect.Right - LRect.Right - 4, 4));
 
   OffsetRect(LRect, LPoint.X, LPoint.Y);
+{$IFDEF ALPHASKINS}
+  CompensateHintShadow(LHintWindow, LRect);
+{$ENDIF}
   LHintWindow.ActivateHint(LRect, LPositionText);
   LHintWindow.Invalidate;
 end;
