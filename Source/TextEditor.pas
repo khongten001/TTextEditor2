@@ -581,7 +581,6 @@ type
     procedure DoShiftTabKey;
     procedure DoSyncEdit;
     procedure DoTabKey;
-    procedure DoToggleBookmark(const AImageIndex: Integer = -1; const AAutoNumber: Boolean = False);
     procedure DoToggleMark;
     procedure DoToggleSelectedCase(const ACommand: TTextEditorCommand);
     procedure DoTrimTrailingSpaces(const ATextLine: Integer; const AForceTrim: Boolean = False);
@@ -599,6 +598,7 @@ type
     procedure IncCharacterCount(const AText: string);
     procedure InitializeScrollShadow;
     procedure InsertLine; overload;
+    procedure InternalToggleBookmark(const AImageIndex: Integer = -1; const AAutoNumber: Boolean = False);
     procedure KeywordImagesChanged(ASender: TObject);
     procedure LinesChanged(ASender: TObject);
     procedure LinesChanging(ASender: TObject);
@@ -7303,7 +7303,7 @@ begin
   end;
 end;
 
-procedure TCustomTextEditor.DoToggleBookmark(const AImageIndex: Integer = -1; const AAutoNumber: Boolean = False);
+procedure TCustomTextEditor.InternalToggleBookmark(const AImageIndex: Integer = -1; const AAutoNumber: Boolean = False);
 var
   LTextPosition: TTextEditorTextPosition;
   LMarkIndex: Integer;
@@ -12147,7 +12147,7 @@ end;
 procedure TCustomTextEditor.DoOnBookmarkPopup(Sender: TObject);
 begin
   if Sender is TMenuItem then
-    DoToggleBookmark(TMenuItem(Sender).Tag);
+    InternalToggleBookmark(TMenuItem(Sender).Tag);
 end;
 
 procedure TCustomTextEditor.DoOnLeftMarginClick(AButton: TMouseButton; AShift: TShiftState; X, Y: Integer);
@@ -12231,7 +12231,7 @@ begin
   case AButton of
     mbLeft:
       if bpoToggleBookmarkByClick in LeftMargin.MarksPanel.Options then
-        DoToggleBookmark
+        InternalToggleBookmark
       else
       if bpoToggleMarkByClick in LeftMargin.MarksPanel.Options then
         DoToggleMark;
@@ -22300,9 +22300,9 @@ begin
       if Assigned(AData) then
         MoveCaretAndSelection(TextPosition, TTextEditorTextPosition(AData^), ACommand = TKeyCommands.SelectionGoToXY);
     TKeyCommands.ToggleBookmark:
-      DoToggleBookmark;
+      InternalToggleBookmark;
     TKeyCommands.ToggleNumberBookmark:
-      DoToggleBookmark(-1, True);
+      InternalToggleBookmark(-1, True);
     TKeyCommands.GoToMatchingPair:
       GoToMatchingPair;
     TKeyCommands.GoToNextBookmark:
@@ -23688,7 +23688,7 @@ var
   LTextPosition: TTextEditorTextPosition;
 begin
   if AIndex = -1 then
-    DoToggleBookmark
+    InternalToggleBookmark
   else
   begin
     LTextPosition := TextPosition;
