@@ -24,6 +24,7 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure Assign(ASource: TPersistent); override;
+    procedure SetOption(const AOption: TTextEditorActiveLineOption; const AEnabled: Boolean);
     property OnChange: TNotifyEvent read FOnChange write SetOnChange;
   published
     property Indicator: TTextEditorGlyph read FIndicator write SetIndicator stored IsIndicatorStored;
@@ -66,6 +67,14 @@ begin
   end
   else
     inherited Assign(ASource);
+end;
+
+procedure TTextEditorActiveLine.SetOption(const AOption: TTextEditorActiveLineOption; const AEnabled: Boolean);
+begin
+  if AEnabled then
+    Include(FOptions, AOption)
+  else
+    Exclude(FOptions, AOption);
 end;
 
 function TTextEditorActiveLine.IsIndicatorStored: Boolean;
