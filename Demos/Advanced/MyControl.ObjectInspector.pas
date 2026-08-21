@@ -66,6 +66,7 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    procedure WndProc(var AMessage: TMessage); override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -253,6 +254,7 @@ begin
   inherited;
 
   SendMessage(Handle, TVM_SETITEMHEIGHT, ITEM_HEIGHT, 0);
+  SendMessage(Handle, TVM_SETEXTENDEDSTYLE, TVS_EX_DOUBLEBUFFER, TVS_EX_DOUBLEBUFFER);
 end;
 
 function TMyObjectInspector.CreateNode: TTreeNode;
@@ -273,12 +275,9 @@ end;
 
 procedure TMyObjectInspector.SetInspectedObject(const AValue: TObject);
 begin
- // if AValue <> FInspectedObject then
-  begin
-    FInspectedObject := AValue;
+  FInspectedObject := AValue;
 
-    DoObjectChange;
-  end;
+  DoObjectChange;
 end;
 
 function TMyObjectInspector.ParentObjectOf(const ANode: TMyInspectorNode): TObject;
@@ -309,14 +308,16 @@ begin
 end;
 
 procedure TMyObjectInspector.UpdateNodeTexts;
+var
+  LText: string;
 begin
-  Items.BeginUpdate;
-  try
-    for var LIndex := 0 to Items.Count - 1 do
-    if Items[LIndex] is TMyInspectorNode then
-      Items[LIndex].Text := FitNodeText(TMyInspectorNode(Items[LIndex]).PropertyName, Items[LIndex].Level);
-  finally
-    Items.EndUpdate;
+  for var LIndex := 0 to Items.Count - 1 do
+  if Items[LIndex] is TMyInspectorNode then
+  begin
+    LText := FitNodeText(TMyInspectorNode(Items[LIndex]).PropertyName, Items[LIndex].Level);
+
+    if Items[LIndex].Text <> LText then
+      Items[LIndex].Text := LText;
   end;
 end;
 
@@ -805,6 +806,17 @@ begin
   FDraggingColumn := False;
 
   inherited MouseUp(Button, Shift, X, Y);
+end;
+
+procedure TMyObjectInspector.WndProc(var AMessage: TMessage);
+begin
+  if AMessage.Msg = WM_ERASEBKGND then
+  begin
+    AMessage.Result := 1;
+    Exit;
+  end;
+
+  inherited;
 end;
 
 procedure TMyObjectInspector.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);

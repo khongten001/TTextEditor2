@@ -14,8 +14,10 @@ type
   private
     FClipboardDirty: Boolean;
     FTestMacroRecorder: TCustomEditorMacroRecorder;
+    function RunCaretNavigationSeed(ASeed: Integer): string;
     function RunClipboardRoundTripSeed(ASeed: Integer): string;
     function RunMacroSeed(ASeed: Integer): string;
+    function RunPastEndOfFileSeed(ASeed: Integer): string;
     function RunSaveLoadSeed(ASeed: Integer): string;
     function RunSelectionInvariantsSeed(ASeed: Integer): string;
     function RunUndoRedoSeed(ASeed: Integer): string;
@@ -25,9 +27,11 @@ type
     procedure PrepareTestClipboard;
     procedure RunTestLoop(const ASeeds: Integer; const ARun: TFunc<Integer, string>);
   public
+    procedure RunCaretNavigationTest;
     procedure RunClipboardRoundTripTest;
     procedure RunHighlighterSweepTest;
     procedure RunMacroTest(const ARecorder: TCustomEditorMacroRecorder);
+    procedure RunPastEndOfFileTest;
     procedure RunSaveLoadTest;
     procedure RunSelectionInvariantsTest;
     procedure RunUndoRedoTest;
@@ -247,6 +251,154 @@ end;
 procedure TFrameTextEditor.RunUndoRedoTest;
 begin
   RunTestLoop(10000, RunUndoRedoSeed);
+end;
+
+function TFrameTextEditor.RunCaretNavigationSeed(ASeed: Integer): string;
+const
+  cBookmarkCount = 4;
+var
+  LPositions: array [0 .. cBookmarkCount - 1] of TTextEditorTextPosition;
+  LPosition, LEditPosition: TTextEditorTextPosition;
+begin
+  Result := '';
+
+  LoadTestDocument;
+
+  RandSeed := ASeed;
+
+  { Caret bookmarks return in last-in-first-out order }
+  for var LIndex := 0 to cBookmarkCount - 1 do
+  begin
+    LPosition.Char := Random(3) + 1;
+    LPosition.Line := Random(TextEditor.Lines.Count);
+    TextEditor.TextPosition := LPosition;
+    LPositions[LIndex] := TextEditor.TextPosition;
+
+    TextEditor.DropCaretBookmark;
+  end;
+
+  for var LIndex := cBookmarkCount - 1 downto 0 do
+  begin
+    TextEditor.ExecuteCommand(TKeyCommands.ReturnToCaretBookmark, #0, nil);
+
+    LPosition := TextEditor.TextPosition;
+
+    if (LPosition.Line <> LPositions[LIndex].Line) or (LPosition.Char <> LPositions[LIndex].Char) then
+      Exit('Caret bookmark ' + LIndex.ToString + ' returned to a wrong position for RandSeed = ' + ASeed.ToString);
+  end;
+
+  if TextEditor.CaretBookmarks.Count <> 0 then
+    Exit('Caret bookmark list is not empty for RandSeed = ' + ASeed.ToString);
+
+  { Swap toggles between the caret and the topmost caret bookmark }
+  TextEditor.TextPosition := LPositions[0];
+  TextEditor.DropCaretBookmark;
+  TextEditor.TextPosition := LPositions[1];
+  TextEditor.ExecuteCommand(TKeyCommands.SwapCaretBookmark, #0, nil);
+
+  LPosition := TextEditor.TextPosition;
+
+  if (LPosition.Line <> LPositions[0].Line) or (LPosition.Char <> LPositions[0].Char) then
+    Exit('Swap did not move the caret to the bookmark for RandSeed = ' + ASeed.ToString);
+
+  TextEditor.ExecuteCommand(TKeyCommands.SwapCaretBookmark, #0, nil);
+
+  LPosition := TextEditor.TextPosition;
+
+  if (LPosition.Line <> LPositions[1].Line) or (LPosition.Char <> LPositions[1].Char) then
+    Exit('Swap did not move the caret back for RandSeed = ' + ASeed.ToString);
+
+  TextEditor.ExecuteCommand(TKeyCommands.ReturnToCaretBookmark, #0, nil);
+
+  { Go to last edit position finds the edit after the caret moved away }
+  LPosition.Char := Random(3) + 1;
+  LPosition.Line := Random(TextEditor.Lines.Count);
+  TextEditor.TextPosition := LPosition;
+  TextEditor.ExecuteCommand(TKeyCommands.Char, 'x', nil);
+  LEditPosition := TextEditor.TextPosition;
+
+  LPosition.Char := 1;
+  LPosition.Line := (LEditPosition.Line + 1) mod TextEditor.Lines.Count;
+  TextEditor.TextPosition := LPosition;
+
+  TextEditor.ExecuteCommand(TKeyCommands.GoToLastEditPosition, #0, nil);
+
+  if TextEditor.TextPosition.Line <> LEditPosition.Line then
+    Exit('Go to last edit position landed on line ' + TextEditor.TextPosition.Line.ToString + ' instead of ' +
+      LEditPosition.Line.ToString + ' for RandSeed = ' + ASeed.ToString);
+end;
+
+procedure TFrameTextEditor.RunCaretNavigationTest;
+begin
+  RunTestLoop(10000, RunCaretNavigationSeed);
+end;
+
+function TFrameTextEditor.RunPastEndOfFileSeed(ASeed: Integer): string;
+const
+  cActionsCount = 6;
+var
+  LPosition: TTextEditorTextPosition;
+  LTargetLine: Integer;
+begin
+  Result := '';
+
+  LoadTestDocument;
+  PrepareTestClipboard;
+
+  RandSeed := ASeed;
+
+  TextEditor.Scroll.Options := TextEditor.Scroll.Options + [soPastEndOfFileMarker];
+
+  if Odd(ASeed) then
+    TextEditor.Scroll.Options := TextEditor.Scroll.Options + [soPastEndOfLine]
+  else
+    TextEditor.Scroll.Options := TextEditor.Scroll.Options - [soPastEndOfLine];
+
+  try
+    { Typing on a virtual line past the end of file materializes the missing lines }
+    LTargetLine := TextEditor.Lines.Count + Random(5);
+    LPosition.Char := Random(6) + 1;
+    LPosition.Line := LTargetLine;
+    TextEditor.TextPosition := LPosition;
+
+    TextEditor.ExecuteCommand(TKeyCommands.Char, 'w', nil);
+
+    if TextEditor.Lines.Count <= LTargetLine then
+      Exit('Typing on a virtual line did not materialize the lines for RandSeed = ' + ASeed.ToString);
+
+    if not TextEditor.Lines[LTargetLine].Contains('w') then
+      Exit('Typed character not found on the target line for RandSeed = ' + ASeed.ToString);
+
+    { Random commands with the caret dropped on virtual positions must keep the position valid }
+    for var LIndex := 1 to cActionsCount do
+    begin
+      LPosition.Char := Random(6) + 1;
+      LPosition.Line := TextEditor.Lines.Count + Random(3);
+      TextEditor.TextPosition := LPosition;
+
+      ExecuteTestCommand(cTestCommands[Random(Length(cTestCommands))]);
+
+      LPosition := TextEditor.TextPosition;
+
+      if (LPosition.Line < 0) or (LPosition.Char < 1) then
+        Exit('Invalid caret position after command ' + LIndex.ToString + ' for RandSeed = ' + ASeed.ToString);
+    end;
+  except
+    on E: Exception do
+      Exit(E.ClassName + ': ' + E.Message + ' for RandSeed = ' + ASeed.ToString);
+  end;
+end;
+
+procedure TFrameTextEditor.RunPastEndOfFileTest;
+var
+  LOptions: TTextEditorScrollOptions;
+begin
+  LOptions := TextEditor.Scroll.Options;
+  try
+    RunTestLoop(10000, RunPastEndOfFileSeed);
+  finally
+    TextEditor.Scroll.Options := LOptions;
+  end;
 end;
 
 function TFrameTextEditor.RunSelectionInvariantsSeed(ASeed: Integer): string;

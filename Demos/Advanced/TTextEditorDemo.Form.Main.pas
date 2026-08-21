@@ -30,9 +30,11 @@ type
     ActionMainMenuBar: TActionMainMenuBar;
     ActionManager: TActionManager;
     ActionSearchGoToLine: TAction;
+    ActionTestCaretNavigation: TAction;
     ActionTestClipboardRoundTrip: TAction;
     ActionTestHighlighterSweep: TAction;
     ActionTestMacro: TAction;
+    ActionTestPastEndOfFile: TAction;
     ActionTestSaveLoad: TAction;
     ActionTestSelectionInvariants: TAction;
     ActionTestUndoRedo: TAction;
@@ -79,9 +81,11 @@ type
     procedure ActionMacroRecordExecute(Sender: TObject);
     procedure ActionMacroStopExecute(Sender: TObject);
     procedure ActionSearchGoToLineExecute(Sender: TObject);
+    procedure ActionTestCaretNavigationExecute(Sender: TObject);
     procedure ActionTestClipboardRoundTripExecute(Sender: TObject);
     procedure ActionTestHighlighterSweepExecute(Sender: TObject);
     procedure ActionTestMacroExecute(Sender: TObject);
+    procedure ActionTestPastEndOfFileExecute(Sender: TObject);
     procedure ActionTestSaveLoadExecute(Sender: TObject);
     procedure ActionTestSelectionInvariantsExecute(Sender: TObject);
     procedure ActionTestUndoRedoExecute(Sender: TObject);
@@ -563,6 +567,16 @@ end;
 procedure TMainForm.ActionTestHighlighterSweepExecute(Sender: TObject);
 begin
   FFrameTextEditor.RunHighlighterSweepTest;
+end;
+
+procedure TMainForm.ActionTestCaretNavigationExecute(Sender: TObject);
+begin
+  FFrameTextEditor.RunCaretNavigationTest;
+end;
+
+procedure TMainForm.ActionTestPastEndOfFileExecute(Sender: TObject);
+begin
+  FFrameTextEditor.RunPastEndOfFileTest;
 end;
 
 procedure TMainForm.ActionTestMacroExecute(Sender: TObject);

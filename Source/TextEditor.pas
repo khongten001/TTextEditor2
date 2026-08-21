@@ -611,6 +611,7 @@ type
     procedure LinesPutted(ASender: TObject; const AIndex: Integer; const ACount: Integer);
     procedure MacroStateTimerHandler(ASender: TObject);
     procedure MatchingPairsChanged(ASender: TObject);
+    procedure MaterializeVirtualLines;
     procedure MinimapChanged(ASender: TObject);
     procedure MouseScrollTimerHandler(ASender: TObject);
     procedure MoveCaretAndSelection(const ABeforeTextPosition, AAfterTextPosition: TTextEditorTextPosition; const ASelectionCommand: Boolean);
@@ -3346,7 +3347,10 @@ end;
 
 function TCustomTextEditor.GetSelectedRow(const AY: Integer): Integer;
 begin
-  Result := Max(1, Min(TopLine + GetRowCountFromPixel(AY), FLineNumbers.Count));
+  Result := Max(1, TopLine + GetRowCountFromPixel(AY));
+
+  if not (soPastEndOfFileMarker in FScroll.Options) then
+    Result := Min(Result, FLineNumbers.Count);
 end;
 
 function TCustomTextEditor.GetSelectionStart: Integer;
@@ -4658,7 +4662,10 @@ var
 begin
   LViewPosition := PixelsToViewPosition(X, Y);
 
-  LViewPosition.Row := EnsureRange(LViewPosition.Row, 1, Max(FLineNumbers.Count, 1));
+  LViewPosition.Row := Max(LViewPosition.Row, 1);
+
+  if not (soPastEndOfFileMarker in FScroll.Options) then
+    LViewPosition.Row := Min(LViewPosition.Row, Max(FLineNumbers.Count, 1));
 
   if FWordWrap.Active and (Length(FWordWrapLine.ViewLength) > LViewPosition.Row) then
   begin
@@ -5316,6 +5323,9 @@ var
   LTextLine: string;
   LTextBeginPosition, LTextEndPosition: TTextEditorTextPosition;
 begin
+  if TextPosition.Line >= FLines.Count then
+    Exit;
+
   BeginUpdate;
   try
     LTextPosition := TextPosition;
@@ -12132,6 +12142,9 @@ procedure TCustomTextEditor.DoOnCommandProcessed(ACommand: TTextEditorCommand; c
     if Length(FCodeFoldings.RangeToLine) = 0 then
       Exit;
 
+    if ALine >= Length(FCodeFoldings.RangeToLine) then
+      Exit;
+
     LIndex := ALine;
 
     while (LIndex > 0) and not Assigned(FCodeFoldings.RangeToLine[LIndex]) do
@@ -13369,7 +13382,7 @@ begin
   begin
     if not FRuler.Visible or IsRulerVisible and (Y > FRuler.Height) then
     begin
-      FMouse.DownInText := TopLine + GetRowCountFromPixel(Y) <= FLineNumbers.Count;
+      FMouse.DownInText := (TopLine + GetRowCountFromPixel(Y) <= FLineNumbers.Count) or (soPastEndOfFileMarker in FScroll.Options);
 
       if FMouse.DownInText then
       begin
@@ -15046,7 +15059,7 @@ var
 
       LLastTextLine := ALastTextLine;
 
-      if lnoAfterLastLine in FLeftMargin.LineNumbers.Options then
+      if (lnoAfterLastLine in FLeftMargin.LineNumbers.Options) or (soPastEndOfFileMarker in FScroll.Options) then
         LLastTextLine := ALastLine;
 
       LCaretY := FPosition.Text.Line + 1;
@@ -19053,7 +19066,7 @@ begin
     if LValue.Row < 1 then
       LValue.Row := 1
     else
-    if LValue.Row > FLineNumbers.Count then
+    if (LValue.Row > FLineNumbers.Count) and not (soPastEndOfFileMarker in FScroll.Options) then
     begin
       LValue.Row := Max(FLineNumbers.Count, 1);
       LValue.Column := FLines[GetViewTextLineNumber(LValue.Row) - 1].Length + 1;
@@ -22209,12 +22222,15 @@ begin
 
             if LDropAfter then
             begin
-              LNewCaretPosition.Line := LNewCaretPosition.Line - LLinesDeleted;
+              if LNewCaretPosition.Line = LSelectionEndPosition.Line then
+                LNewCaretPosition.Char := LNewCaretPosition.Char - (LSelectionEndPosition.Char - LSelectionStartPosition.Char);
 
-              if LSelectionStartPosition.Line = LSelectionEndPosition.Line then
-                LNewCaretPosition.Char := LNewCaretPosition.Char - LDragDropText.Length;
+              LNewCaretPosition.Line := LNewCaretPosition.Line - LLinesDeleted;
             end;
           end;
+
+          if not (soPastEndOfLine in FScroll.Options) and (LNewCaretPosition.Line < FLines.Count) then
+            LNewCaretPosition.Char := Min(LNewCaretPosition.Char, FLines[LNewCaretPosition.Line].Length + 1);
 
           LChangeScrollPastEndOfLine := not (soPastEndOfLine in FScroll.Options);
           try
@@ -22339,9 +22355,42 @@ begin
   end;
 end;
 
+procedure TCustomTextEditor.MaterializeVirtualLines;
+var
+  LTargetPosition: TTextEditorTextPosition;
+  LText: string;
+begin
+  if (FLines.Count = 0) or (FPosition.Text.Line < FLines.Count) then
+    Exit;
+
+  LTargetPosition := FPosition.Text;
+
+  FPosition.SelectionStart := LTargetPosition;
+  FPosition.SelectionEnd := LTargetPosition;
+
+  LText := '';
+
+  for var LIndex := FLines.Count to LTargetPosition.Line do
+    LText := LText + sLineBreak;
+
+  TextPosition := GetPosition(FLines[FLines.Count - 1].Length + 1, FLines.Count - 1);
+
+  DoInsertText(LText);
+
+  TextPosition := LTargetPosition;
+end;
+
 procedure TCustomTextEditor.ExecuteCommand(const ACommand: TTextEditorCommand; const AChar: Char; const AData: Pointer);
 begin
   FState.ExecutingSelectionCommand := ACommand in [TKeyCommands.Selection..TKeyCommands.SelectAll];
+
+  if (soPastEndOfFileMarker in FScroll.Options) and not ReadOnly and (FPosition.Text.Line >= FLines.Count) then
+  case ACommand of
+    TKeyCommands.Char, TKeyCommands.LineBreak, TKeyCommands.Paste, TKeyCommands.Text, TKeyCommands.ImeStr,
+      TKeyCommands.Tab, TKeyCommands.InsertLine, TKeyCommands.LineComment, TKeyCommands.BlockComment,
+      TKeyCommands.BlockIndent:
+      MaterializeVirtualLines;
+  end;
 
   case ACommand of
     TKeyCommands.Left, TKeyCommands.SelectionLeft:

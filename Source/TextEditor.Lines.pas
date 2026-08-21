@@ -373,6 +373,9 @@ begin
     ListIndexOutOfBounds(AIndex);
 {$ENDIF}
 
+  if not IsValidIndex(AIndex) then
+    Exit;
+
   Finalize(FItems^[AIndex]);
   Dec(FCount);
 
@@ -398,6 +401,9 @@ begin
     if (AIndex < 0) or (AIndex > FCount) then
       ListIndexOutOfBounds(AIndex);
 {$ENDIF}
+
+    if not IsValidIndex(AIndex) then
+      Exit;
 
     LLinesAfter := FCount - (AIndex + LCount);
 
@@ -544,12 +550,12 @@ end;
 
 function TTextEditorLines.GetFlags(const AIndex: Integer): TTextEditorStringFlags;
 begin
-  Result := FItems^[AIndex].Flags;
+  Result := if IsValidIndex(AIndex) then FItems^[AIndex].Flags else [];
 end;
 
 function TTextEditorLines.GetTextLines(const AIndex: Integer): string;
 begin
-  Result := FItems^[AIndex].TextLine;
+  Result := if IsValidIndex(AIndex) then FItems^[AIndex].TextLine else '';
 end;
 
 function TTextEditorLines.GetCapacity: Integer;
@@ -1570,6 +1576,9 @@ begin
     if (AIndex < 0) or (AIndex >= FCount) then
       ListIndexOutOfBounds(AIndex);
 {$ENDIF}
+    if not IsValidIndex(AIndex) then
+      Exit;
+
     if Assigned(OnBeforePutted) then
       OnBeforePutted(Self, AIndex, 1);
 

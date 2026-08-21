@@ -636,6 +636,14 @@ object MainForm: TMainForm
               item
                 Action = ActionTestHighlighterSweep
                 Caption = 'Test &highlighters and themes'
+              end
+              item
+                Action = ActionTestCaretNavigation
+                Caption = 'Test caret &navigation'
+              end
+              item
+                Action = ActionTestPastEndOfFile
+                Caption = 'Test &past end of file/line'
               end>
             Caption = '&Test'
           end>
@@ -754,6 +762,16 @@ object MainForm: TMainForm
       Category = 'Test'
       Caption = 'Test highlighters and themes'
       OnExecute = ActionTestHighlighterSweepExecute
+    end
+    object ActionTestCaretNavigation: TAction
+      Category = 'Test'
+      Caption = 'Test caret navigation'
+      OnExecute = ActionTestCaretNavigationExecute
+    end
+    object ActionTestPastEndOfFile: TAction
+      Category = 'Test'
+      Caption = 'Test past end of file/line'
+      OnExecute = ActionTestPastEndOfFileExecute
     end
   end
   object PrintDialog: TPrintDialog
