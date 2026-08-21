@@ -776,6 +776,7 @@ type
     procedure PaintBorder;
     procedure PaintCaret;
     procedure PaintCaretBlock(const AViewPosition: TTextEditorViewPosition);
+    procedure PaintCaretBookmarks;
     procedure PaintCodeFolding(const AClipRect: TRect; const AFirstRow, ALastRow: Integer);
     procedure PaintCodeFoldingCollapseMark(const AFoldRange: TTextEditorCodeFoldingRange; const ACurrentLineText: string; const ATokenPosition, ATokenLength, ALine: Integer; const ALineRect: TRect);
     procedure PaintCodeFoldingCollapsedLine(const AFoldRange: TTextEditorCodeFoldingRange; const ALineRect: TRect);
@@ -7466,6 +7467,58 @@ begin
   end;
 end;
 
+procedure TCustomTextEditor.PaintCaretBookmarks;
+var
+  LMark: TTextEditorMark;
+  LViewPosition: TTextEditorViewPosition;
+  LPoint: TPoint;
+  LGraphics: TGPGraphics;
+  LBrush: TGPSolidBrush;
+  LPoints: array [0 .. 2] of TGPPointF;
+  LRGBColor: Cardinal;
+  LLineHeight, LSize: Integer;
+  LX, LBottom: Single;
+begin
+  LLineHeight := GetLineHeight;
+  LSize := Max(4, LLineHeight div 3);
+  LRGBColor := ColorToRGB(FColors.BookmarkRed);
+
+  LGraphics := TGPGraphics.Create(Canvas.Handle);
+  LBrush := TGPSolidBrush.Create(MakeColor(255, GetRValue(LRGBColor), GetGValue(LRGBColor), GetBValue(LRGBColor)));
+  try
+    LGraphics.SetSmoothingMode(SmoothingModeAntiAlias);
+    LGraphics.SetPixelOffsetMode(PixelOffsetModeHalf);
+
+    for var LIndex := 0 to FCaretBookmarkList.Count - 1 do
+    begin
+      LMark := FCaretBookmarkList.Items[LIndex];
+      LViewPosition := TextToViewPosition(GetPosition(LMark.Char, LMark.Line));
+
+      if (LViewPosition.Row < FLineNumbers.TopLine) or
+        (LViewPosition.Row > FLineNumbers.TopLine + FLineNumbers.VisibleCount) then
+        Continue;
+
+      LPoint := ViewPositionToPixels(LViewPosition);
+
+      if LPoint.X < FLeftMarginWidth then
+        Continue;
+
+      { Upward arrow with the apex at the drop position }
+      LX := LPoint.X;
+      LBottom := LPoint.Y + LLineHeight;
+
+      LPoints[0] := MakePoint(LX, LBottom - LSize);
+      LPoints[1] := MakePoint(LX + LSize * 0.75, LBottom);
+      LPoints[2] := MakePoint(LX - LSize * 0.75, LBottom);
+
+      LGraphics.FillPolygon(LBrush, PGPPointF(@LPoints[0]), Length(LPoints));
+    end;
+  finally
+    LBrush.Free;
+    LGraphics.Free;
+  end;
+end;
+
 function TCustomTextEditor.IsTextPositionInSearchBlock(const ATextPosition: TTextEditorTextPosition): Boolean;
 var
   LSelectionStartPosition, LSelectionEndPosition: TTextEditorTextPosition;
@@ -12629,6 +12682,10 @@ begin
   try
     LEditorCommand := TranslateKeyCode(AKey, AShift);
 
+    if ((LEditorCommand = TKeyCommands.ReturnToCaretBookmark) or (LEditorCommand = TKeyCommands.SwapCaretBookmark)) and
+      (FCaretBookmarkList.Count = 0) then
+      LEditorCommand := TKeyCommands.None;
+
     if FSyncEdit.Visible then
     case LEditorCommand of
       TKeyCommands.Char, TKeyCommands.Backspace, TKeyCommands.Copy, TKeyCommands.Cut, TKeyCommands.Left,
@@ -13909,6 +13966,9 @@ begin
     begin
       if FSyncEdit.Active and FSyncEdit.Visible then
         PaintSyncItems;
+
+      if FCaretBookmarkList.Count > 0 then
+        PaintCaretBookmarks;
 
       if FCaret.Visible then
       begin
@@ -15269,7 +15329,7 @@ var
     LMark: TTextEditorMark;
     LMarkLine: Integer;
   begin
-    if FLeftMargin.Bookmarks.Visible and FLeftMargin.Bookmarks.Visible and ((FBookmarkList.Count > 0) or (FMarkList.Count > 0)) and (ALastLine >= AFirstLine) then
+    if FLeftMargin.Bookmarks.Visible and ((FBookmarkList.Count > 0) or (FCaretBookmarkList.Count > 0) or (FMarkList.Count > 0)) and (ALastLine >= AFirstLine) then
     begin
       LOverlappingOffsets := AllocMem((ALastLine - AFirstLine + 1) * SizeOf(Integer));
       try
@@ -15281,6 +15341,15 @@ var
           for var LIndex := FBookmarkList.Count - 1 downto 0 do
           begin
             LMark := FBookmarkList.Items[LIndex];
+
+            if LMark.Visible and (LMark.Line + 1 = LMarkLine) then
+              DrawBookmark(LMark, LOverlappingOffsets[ALastLine - LLine], LMarkLine);
+          end;
+
+          { Caret bookmarks }
+          for var LIndex := FCaretBookmarkList.Count - 1 downto 0 do
+          begin
+            LMark := FCaretBookmarkList.Items[LIndex];
 
             if LMark.Visible and (LMark.Line + 1 = LMarkLine) then
               DrawBookmark(LMark, LOverlappingOffsets[ALastLine - LLine], LMarkLine);
@@ -22563,12 +22632,15 @@ begin
   LMark.Line := LTextPosition.Line;
   LMark.Char := LTextPosition.Char;
   LMark.Index := FCaretBookmarkList.Count;
-  LMark.Visible := False;
+  LMark.ImageIndex := 10; { Red, unnumbered glyph }
+  LMark.Visible := True;
 
   FCaretBookmarkList.Add(LMark);
 
   while FCaretBookmarkList.Count > 50 do
     FCaretBookmarkList.Delete(0);
+
+  Invalidate;
 end;
 
 procedure TCustomTextEditor.ReturnToCaretBookmark;

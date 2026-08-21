@@ -757,7 +757,9 @@ begin
   Add(TKeyCommands.GoToPreviousBookmark, [ssShift], vkF2);
   Add(TKeyCommands.ToggleNumberBookmark, [ssCtrl], Ord('B'));
   Add(TKeyCommands.DropCaretBookmark, [ssCtrl, ssShift], Ord('B'));
+  Add(TKeyCommands.ReturnToCaretBookmark, [], vkEscape);
   Add(TKeyCommands.ReturnToCaretBookmark, [ssCtrl, ssAlt], Ord('B'));
+  Add(TKeyCommands.SwapCaretBookmark, [ssShift], vkEscape);
   { Comments }
   Add(TKeyCommands.LineComment, [ssCtrl], vkSlash);
   Add(TKeyCommands.BlockComment, [ssCtrl, ssShift], vkSlash);
