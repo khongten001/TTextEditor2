@@ -5,6 +5,9 @@ interface
 uses
   System.Classes, TextEditor.Types, TextEditor.Undo.Item;
 
+const
+  TEXTEDITOR_MODIFYING_CHANGE_REASONS = [crInsert, crPaste, crDragDropInsert, crDelete, crLineBreak, crIndent, crUnindent];
+
 type
   TTextEditorUndoList = class(TPersistent)
   protected
@@ -55,9 +58,6 @@ type
   end;
 
 implementation
-
-const
-  TEXTEDITOR_MODIFYING_CHANGE_REASONS = [crInsert, crPaste, crDragDropInsert, crDelete, crLineBreak, crIndent, crUnindent];
 
 constructor TTextEditorUndoList.Create;
 begin

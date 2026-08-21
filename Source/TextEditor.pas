@@ -334,6 +334,8 @@ type
     FBookmarkList: TTextEditorMarkList;
     FBookmarkPopupMenu: TComponent;
     FCaretBookmarkList: TTextEditorMarkList;
+    FLastEditCycleIndex: Integer;
+    FLastEditCycleUndoCount: Integer;
     FBorder: TTextEditorBorder;
 {$IFDEF ALPHASKINS}
     FBoundLabel: TsBoundLabel;
@@ -929,6 +931,7 @@ type
     procedure FoldingGoToPrevious;
     procedure FreeBookmarkImages;
     procedure GoToBookmark(const AIndex: Integer);
+    procedure GoToLastEditPosition;
     procedure GoToLine(const ALine: Integer);
     procedure GoToLineAndSetPosition(const ALine: Integer; const AChar: Integer = 1; const AResultPosition: TTextEditorResultPosition = rpMiddle);
     procedure GoToMatchingPair;
@@ -22384,6 +22387,8 @@ begin
       ReturnToCaretBookmark;
     TKeyCommands.SwapCaretBookmark:
       SwapCaretBookmark;
+    TKeyCommands.GoToLastEditPosition:
+      GoToLastEditPosition;
     TKeyCommands.ZoomIn:
       ZoomIn;
     TKeyCommands.ZoomOut:
@@ -22680,6 +22685,63 @@ begin
   LMark.Char := LTextPosition.Char;
 
   GoToLineAndSetPosition(LTargetPosition.Line, LTargetPosition.Char);
+
+  FPosition.SelectionStart := TextPosition;
+  FPosition.SelectionEnd := FPosition.SelectionStart;
+
+  Invalidate;
+end;
+
+procedure TCustomTextEditor.GoToLastEditPosition;
+var
+  LIndex, LCaretLine: Integer;
+  LTextPosition: TTextEditorTextPosition;
+
+  function TargetPosition(const AItem: TTextEditorUndoItem): TTextEditorTextPosition;
+  begin
+    Result := if AItem.ChangeReason = crDelete then AItem.ChangeBeginPosition else AItem.ChangeEndPosition;
+  end;
+
+  function FindEdit(const AFromIndex: Integer): Integer;
+  var
+    LItem: TTextEditorUndoItem;
+  begin
+    for Result := AFromIndex downto 0 do
+    begin
+      LItem := FUndoList.Items[Result];
+
+      if (LItem.ChangeReason in TEXTEDITOR_MODIFYING_CHANGE_REASONS) and (TargetPosition(LItem).Line <> LCaretLine) then
+        Exit;
+    end;
+
+    Result := -1;
+  end;
+
+begin
+  if FUndoList.ItemCount = 0 then
+    Exit;
+
+  { Editing again restarts the cycle from the most recent edit }
+  if FUndoList.ItemCount <> FLastEditCycleUndoCount then
+    FLastEditCycleIndex := FUndoList.ItemCount;
+
+  FLastEditCycleUndoCount := FUndoList.ItemCount;
+  LCaretLine := TextPosition.Line;
+
+  LIndex := FindEdit(FLastEditCycleIndex - 1);
+
+  if LIndex = -1 then { Wrap around to the most recent edit }
+    LIndex := FindEdit(FUndoList.ItemCount - 1);
+
+  if LIndex = -1 then
+    Exit;
+
+  FLastEditCycleIndex := LIndex;
+
+  LTextPosition := TargetPosition(FUndoList.Items[LIndex]);
+  LTextPosition.Line := EnsureRange(LTextPosition.Line, 0, Max(FLines.Count - 1, 0));
+
+  GoToLineAndSetPosition(LTextPosition.Line, LTextPosition.Char);
 
   FPosition.SelectionStart := TextPosition;
   FPosition.SelectionEnd := FPosition.SelectionStart;

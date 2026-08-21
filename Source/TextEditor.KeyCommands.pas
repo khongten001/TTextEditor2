@@ -86,6 +86,7 @@ type
     ReturnToCaretBookmark = 333;
     SwapCaretBookmark = 334;
     ToggleNumberBookmark = 335;
+    GoToLastEditPosition = 336;
     { Deletion }
     Backspace = 501;
     Clear = 502;
@@ -236,7 +237,7 @@ type
   end;
 
 const
-  EditorCommandStrings: array [0 .. 119] of TTextEditorCommandString = (
+  EditorCommandStrings: array [0 .. 120] of TTextEditorCommandString = (
     (Value: TKeyCommands.None; Name: 'TKeyCommands.None'),
     (Value: TKeyCommands.Left; Name: 'TKeyCommands.Left'),
     (Value: TKeyCommands.Right; Name: 'TKeyCommands.Right'),
@@ -332,6 +333,7 @@ const
     (Value: TKeyCommands.ReturnToCaretBookmark; Name: 'TKeyCommands.ReturnToCaretBookmark'),
     (Value: TKeyCommands.SwapCaretBookmark; Name: 'TKeyCommands.SwapCaretBookmark'),
     (Value: TKeyCommands.ToggleNumberBookmark; Name: 'TKeyCommands.ToggleNumberBookmark'),
+    (Value: TKeyCommands.GoToLastEditPosition; Name: 'TKeyCommands.GoToLastEditPosition'),
     (Value: TKeyCommands.Text; Name: 'TKeyCommands.Text'),
     (Value: TKeyCommands.MoveLinesUp; Name: 'TKeyCommands.MoveLinesUp'),
     (Value: TKeyCommands.MoveLinesDown; Name: 'TKeyCommands.MoveLinesDown'),
@@ -760,6 +762,7 @@ begin
   Add(TKeyCommands.ReturnToCaretBookmark, [], vkEscape);
   Add(TKeyCommands.ReturnToCaretBookmark, [ssCtrl, ssAlt], Ord('B'));
   Add(TKeyCommands.SwapCaretBookmark, [ssShift], vkEscape);
+  Add(TKeyCommands.GoToLastEditPosition, [ssCtrl, ssAlt], vkBack);
   { Comments }
   Add(TKeyCommands.LineComment, [ssCtrl], vkSlash);
   Add(TKeyCommands.BlockComment, [ssCtrl, ssShift], vkSlash);
