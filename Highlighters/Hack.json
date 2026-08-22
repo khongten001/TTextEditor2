@@ -14,6 +14,9 @@
       "Attributes": {
         "Element": "Editor"
       },
+      "Properties": {
+        "HighlightMethodCalls": true
+      },
       "SubRules": {
         "Range": [
           {

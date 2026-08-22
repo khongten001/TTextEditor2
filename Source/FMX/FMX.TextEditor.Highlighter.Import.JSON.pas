@@ -568,6 +568,7 @@ begin
             CloseOnTerm := LPropertiesObject.ValueBoolean['CloseOnTerm'];
             CloseParent := LPropertiesObject.ValueBoolean['CloseParent'];
             HereDocument := LPropertiesObject.ValueBoolean['HereDocument'];
+            HighlightMethodCalls := LPropertiesObject.ValueBoolean['HighlightMethodCalls'];
             OpenBeginningOfLine := LPropertiesObject.ValueBoolean['OpenBeginningOfLine'];
             OpenEndOfLine := LPropertiesObject.ValueBoolean['OpenEndOfLine'];
             SkipWhitespace := LPropertiesObject.ValueBoolean['SkipWhitespace'];

@@ -526,6 +526,18 @@ begin
 
           Inc(FRunPosition);
         end;
+
+        if FRange.HighlightMethodCalls and (FRunPosition > FTokenPosition) and
+          ((FLine[FTokenPosition] in ['A'..'Z', 'a'..'z', '_']) or (Ord(FLine[FTokenPosition]) > TCharacters.AnsiCharHigh)) then
+        begin
+          LPosition := FRunPosition;
+
+          while FLine[LPosition] in [TCharacters.Space, TControlCharacters.Tab] do
+            Inc(LPosition);
+
+          if FLine[LPosition] = '(' then
+            FToken := FRange.MethodCallToken;
+        end;
       end;
     end
     else
@@ -773,6 +785,7 @@ procedure TTextEditorHighlighter.UpdateAttributes(const ARange: TTextEditorRange
 
 begin
   SetAttributes(ARange.Attribute, AParentRange);
+  SetAttributes(ARange.MethodCallAttribute, ARange);
 
   for var LIndex := 0 to ARange.KeyListCount - 1 do
     SetAttributes(ARange.KeyList[LIndex].Attribute, ARange);

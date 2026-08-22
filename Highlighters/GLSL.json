@@ -12,6 +12,9 @@
       "Attributes": {
         "Element": "Editor"
       },
+      "Properties": {
+        "HighlightMethodCalls": true
+      },
       "SubRules": {
         "Range": [
           {
@@ -299,79 +302,6 @@
             ],
             "Attributes": {
               "Element": "Attribute"
-            }
-          },
-          {
-            "Type": "Method",
-            "Words": [
-              "abs",
-              "acos",
-              "acosh",
-              "asin",
-              "asinh",
-              "atan",
-              "atanh",
-              "ceil",
-              "clamp",
-              "cos",
-              "cosh",
-              "cross",
-              "degrees",
-              "determinant",
-              "dFdx",
-              "dFdxCoarse",
-              "dFdxFine",
-              "dFdy",
-              "dFdyCoarse",
-              "dFdyFine",
-              "distance",
-              "dot",
-              "equal",
-              "exp",
-              "exp2",
-              "faceforward",
-              "floor",
-              "fma",
-              "fract",
-              "frexp",
-              "fwidth",
-              "fwidthCoarse",
-              "fwidthFine",
-              "inverse",
-              "inversesqrt",
-              "isinf",
-              "isnan",
-              "ldexp",
-              "length",
-              "log",
-              "log2",
-              "max",
-              "min",
-              "mix",
-              "mod",
-              "modf",
-              "normalize",
-              "pow",
-              "radians",
-              "reflect",
-              "refract",
-              "sign",
-              "sin",
-              "sinh",
-              "smoothstep",
-              "sqrt",
-              "step",
-              "tan",
-              "tanh",
-              "texture2D",
-              "texture2DLod",
-              "texture2DProj",
-              "texture2DProjLod",
-              "transpose",
-              "trunc"
-            ],
-            "Attributes": {
-              "Element": "Method"
             }
           },
           {

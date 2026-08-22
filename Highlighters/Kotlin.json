@@ -12,6 +12,7 @@
         "Element": "Editor"
       },
       "Properties": {
+        "HighlightMethodCalls": true,
         "NestedComments": true
       },
       "SubRules": {

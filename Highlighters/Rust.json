@@ -3,8 +3,16 @@
     "Sample": [
       "// Hello, World! in Rust\r\n",
       "\r\n",
+      "fn greet<'a>(name: &'a str) -> String {\r\n",
+      "    format!(\"Hello, {}!\", name)\r\n",
+      "}\r\n",
+      "\r\n",
       "fn main() {\r\n",
-      "    println!(\"Hello, World!\");\r\n",
+      "    let raw = r#\"C:\\temp\"#;\r\n",
+      "    let bytes = b\"bytes\";\r\n",
+      "    let c = '\\n';\r\n",
+      "    let n = 0b1010 + 0o17 + 0xFF_u8 as i32;\r\n",
+      "    println!(\"{} {} {:?} {} {}\", greet(\"World\"), raw, bytes, c, n);\r\n",
       "}"
     ],
     "MainRules": {
@@ -12,8 +20,10 @@
         "Element": "Editor"
       },
       "Properties": {
-        "NestedComments": true
+        "NestedComments": true,
+        "HighlightMethodCalls": true
       },
+      "CaseSensitive": true,
       "SubRules": {
         "Range": [
           {
@@ -55,32 +65,420 @@
                 {
                   "Type": "String",
                   "Attributes": {
-                    "Element": "String"
+                    "Element": "Character"
+                  },
+                  "AllowedCharacters": "nrt0xu{}0123456789abcdefABCDEF",
+                  "TokenRange": {
+                    "Open": "\\",
+                    "OpenBreakType": "Any"
+                  }
+                },
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "Character"
                   },
                   "Properties": {
                     "CloseOnEndOfLine": true,
-                    "CloseOnTerm": true
+                    "CloseOnAnyTerm": true
                   },
                   "TokenRange": {
                     "Open": "\\\"",
+                    "OpenBreakType": "Any",
                     "Close": ""
                   }
                 },
                 {
                   "Type": "String",
                   "Attributes": {
-                    "Element": "String"
+                    "Element": "Character"
                   },
                   "Properties": {
                     "CloseOnEndOfLine": true,
-                    "CloseOnTerm": true
+                    "CloseOnAnyTerm": true
                   },
                   "TokenRange": {
                     "Open": "\\\\",
+                    "OpenBreakType": "Any",
                     "Close": ""
                   }
                 }
               ]
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "Properties": {
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "b\"",
+              "Close": "\""
+            },
+            "SubRules": {
+              "Range": [
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "Character"
+                  },
+                  "AllowedCharacters": "nrt0xu{}0123456789abcdefABCDEF",
+                  "TokenRange": {
+                    "Open": "\\",
+                    "OpenBreakType": "Any"
+                  }
+                },
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "Character"
+                  },
+                  "Properties": {
+                    "CloseOnEndOfLine": true,
+                    "CloseOnAnyTerm": true
+                  },
+                  "TokenRange": {
+                    "Open": "\\\"",
+                    "OpenBreakType": "Any",
+                    "Close": ""
+                  }
+                },
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "Character"
+                  },
+                  "Properties": {
+                    "CloseOnEndOfLine": true,
+                    "CloseOnAnyTerm": true
+                  },
+                  "TokenRange": {
+                    "Open": "\\\\",
+                    "OpenBreakType": "Any",
+                    "Close": ""
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "Properties": {
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "c\"",
+              "Close": "\""
+            },
+            "SubRules": {
+              "Range": [
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "Character"
+                  },
+                  "AllowedCharacters": "nrt0xu{}0123456789abcdefABCDEF",
+                  "TokenRange": {
+                    "Open": "\\",
+                    "OpenBreakType": "Any"
+                  }
+                },
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "Character"
+                  },
+                  "Properties": {
+                    "CloseOnEndOfLine": true,
+                    "CloseOnAnyTerm": true
+                  },
+                  "TokenRange": {
+                    "Open": "\\\"",
+                    "OpenBreakType": "Any",
+                    "Close": ""
+                  }
+                },
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "Character"
+                  },
+                  "Properties": {
+                    "CloseOnEndOfLine": true,
+                    "CloseOnAnyTerm": true
+                  },
+                  "TokenRange": {
+                    "Open": "\\\\",
+                    "OpenBreakType": "Any",
+                    "Close": ""
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "TokenRange": {
+              "Open": "r\"",
+              "Close": "\""
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "TokenRange": {
+              "Open": "r#\"",
+              "Close": "\"#"
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "TokenRange": {
+              "Open": "r##\"",
+              "Close": "\"##"
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "TokenRange": {
+              "Open": "r###\"",
+              "Close": "\"###"
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "TokenRange": {
+              "Open": "br\"",
+              "Close": "\""
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "TokenRange": {
+              "Open": "br#\"",
+              "Close": "\"#"
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "TokenRange": {
+              "Open": "br##\"",
+              "Close": "\"##"
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "TokenRange": {
+              "Open": "br###\"",
+              "Close": "\"###"
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "TokenRange": {
+              "Open": "cr\"",
+              "Close": "\""
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "TokenRange": {
+              "Open": "cr#\"",
+              "Close": "\"#"
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "TokenRange": {
+              "Open": "cr##\"",
+              "Close": "\"##"
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "TokenRange": {
+              "Open": "cr###\"",
+              "Close": "\"###"
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "Delimiters": "\",;:<>=()[]{}+-*/&|!?@^%.`",
+            "Properties": {
+              "CloseOnEndOfLine": true,
+              "CloseOnTerm": true
+            },
+            "TokenRange": {
+              "Open": "'",
+              "Close": "'",
+              "CloseBreakType": "Any"
+            },
+            "SubRules": {
+              "Range": [
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "Character"
+                  },
+                  "AllowedCharacters": "nrt0xu{}0123456789abcdefABCDEF",
+                  "TokenRange": {
+                    "Open": "\\",
+                    "OpenBreakType": "Any"
+                  }
+                },
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "Character"
+                  },
+                  "Properties": {
+                    "CloseOnEndOfLine": true,
+                    "CloseOnAnyTerm": true
+                  },
+                  "TokenRange": {
+                    "Open": "\\'",
+                    "OpenBreakType": "Any",
+                    "Close": ""
+                  }
+                },
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "Character"
+                  },
+                  "Properties": {
+                    "CloseOnEndOfLine": true,
+                    "CloseOnAnyTerm": true
+                  },
+                  "TokenRange": {
+                    "Open": "\\\\",
+                    "OpenBreakType": "Any",
+                    "Close": ""
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "Delimiters": "\",;:<>=()[]{}+-*/&|!?@^%.`",
+            "Properties": {
+              "CloseOnEndOfLine": true,
+              "CloseOnTerm": true
+            },
+            "TokenRange": {
+              "Open": "b'",
+              "Close": "'",
+              "CloseBreakType": "Any"
+            },
+            "SubRules": {
+              "Range": [
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "Character"
+                  },
+                  "AllowedCharacters": "nrt0xu{}0123456789abcdefABCDEF",
+                  "TokenRange": {
+                    "Open": "\\",
+                    "OpenBreakType": "Any"
+                  }
+                },
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "Character"
+                  },
+                  "Properties": {
+                    "CloseOnEndOfLine": true,
+                    "CloseOnAnyTerm": true
+                  },
+                  "TokenRange": {
+                    "Open": "\\'",
+                    "OpenBreakType": "Any",
+                    "Close": ""
+                  }
+                },
+                {
+                  "Type": "String",
+                  "Attributes": {
+                    "Element": "Character"
+                  },
+                  "Properties": {
+                    "CloseOnEndOfLine": true,
+                    "CloseOnAnyTerm": true
+                  },
+                  "TokenRange": {
+                    "Open": "\\\\",
+                    "OpenBreakType": "Any",
+                    "Close": ""
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "Type": "Method",
+            "Attributes": {
+              "Element": "MethodName"
+            },
+            "Properties": {
+              "CloseOnEndOfLine": true,
+              "AlternativeClose": [
+                "(",
+                "<"
+              ]
+            },
+            "TokenRange": {
+              "Open": "fn",
+              "Close": "{"
             }
           },
           {
@@ -102,13 +500,43 @@
             "Attributes": {
               "Element": "HexNumber"
             },
-            "AllowedCharacters": "0123456789abcdefABCDEF",
+            "AllowedCharacters": "0123456789abcdefABCDEF_",
             "Properties": {
               "CloseOnTerm": true,
               "CloseOnEndOfLine": true
             },
             "TokenRange": {
               "Open": "0x",
+              "OpenBreakType": "Any"
+            }
+          },
+          {
+            "Type": "HexNumber",
+            "Attributes": {
+              "Element": "HexNumber"
+            },
+            "AllowedCharacters": "01_",
+            "Properties": {
+              "CloseOnTerm": true,
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "0b",
+              "OpenBreakType": "Any"
+            }
+          },
+          {
+            "Type": "HexNumber",
+            "Attributes": {
+              "Element": "HexNumber"
+            },
+            "AllowedCharacters": "01234567_",
+            "Properties": {
+              "CloseOnTerm": true,
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "0o",
               "OpenBreakType": "Any"
             }
           },
@@ -192,6 +620,121 @@
             }
           },
           {
+            "Name": "Types",
+            "Type": "Method",
+            "Words": [
+              "Arc",
+              "AsMut",
+              "AsRef",
+              "Box",
+              "BTreeMap",
+              "BTreeSet",
+              "Cell",
+              "Clone",
+              "Copy",
+              "Cow",
+              "Debug",
+              "Default",
+              "Deref",
+              "Display",
+              "Drop",
+              "Eq",
+              "Err",
+              "Error",
+              "Fn",
+              "FnMut",
+              "FnOnce",
+              "From",
+              "Hash",
+              "HashMap",
+              "HashSet",
+              "Into",
+              "Iterator",
+              "Mutex",
+              "None",
+              "Ok",
+              "Option",
+              "Ord",
+              "PartialEq",
+              "PartialOrd",
+              "Path",
+              "PathBuf",
+              "Rc",
+              "RefCell",
+              "Result",
+              "RwLock",
+              "Send",
+              "Sized",
+              "Some",
+              "String",
+              "Sync",
+              "ToString",
+              "Vec",
+              "VecDeque",
+              "bool",
+              "char",
+              "f32",
+              "f64",
+              "i8",
+              "i16",
+              "i32",
+              "i64",
+              "i128",
+              "isize",
+              "str",
+              "u8",
+              "u16",
+              "u32",
+              "u64",
+              "u128",
+              "usize"
+            ],
+            "Attributes": {
+              "Element": "Method"
+            }
+          },
+          {
+            "Name": "Macros",
+            "Type": "MethodName",
+            "Words": [
+              "assert",
+              "assert_eq",
+              "assert_ne",
+              "cfg",
+              "column",
+              "compile_error",
+              "concat",
+              "dbg",
+              "debug_assert",
+              "env",
+              "eprint",
+              "eprintln",
+              "file",
+              "format",
+              "format_args",
+              "include",
+              "include_bytes",
+              "include_str",
+              "line",
+              "matches",
+              "module_path",
+              "panic",
+              "print",
+              "println",
+              "stringify",
+              "thread_local",
+              "todo",
+              "unimplemented",
+              "unreachable",
+              "vec",
+              "write",
+              "writeln"
+            ],
+            "Attributes": {
+              "Element": "MethodName"
+            }
+          },
+          {
             "Type": "Symbol",
             "Words": [
               ":",
@@ -209,6 +752,10 @@
               ",",
               "-",
               "+",
+              "!",
+              "?",
+              "@",
+              "~",
               "(",
               ")",
               "[",

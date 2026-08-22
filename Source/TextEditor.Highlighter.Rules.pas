@@ -104,7 +104,10 @@ type
     FDefaultToken: TTextEditorToken;
     FDelimiters: TTextEditorCharSet;
     FHereDocument: Boolean;
+    FHighlightMethodCalls: Boolean;
     FKeyList: TList;
+    FMethodCallAttribute: TTextEditorHighlighterAttribute;
+    FMethodCallToken: TTextEditorToken;
     FNested: Boolean;
     FOpenBeginningOfLine: Boolean;
     FOpenEndOfLine: Boolean;
@@ -156,8 +159,11 @@ type
     property DefaultToken: TTextEditorToken read FDefaultToken;
     property Delimiters: TTextEditorCharSet read FDelimiters write FDelimiters;
     property HereDocument: Boolean read FHereDocument write FHereDocument;
+    property HighlightMethodCalls: Boolean read FHighlightMethodCalls write FHighlightMethodCalls;
     property KeyListCount: Integer read GetKeyListCount;
     property KeyList[const AIndex: Integer]: TTextEditorKeyList read GetKeyList;
+    property MethodCallAttribute: TTextEditorHighlighterAttribute read FMethodCallAttribute;
+    property MethodCallToken: TTextEditorToken read FMethodCallToken;
     property Nested: Boolean read FNested write FNested;
     property OpenBeginningOfLine: Boolean read FOpenBeginningOfLine write FOpenBeginningOfLine;
     property OpenEndOfLine: Boolean read FOpenEndOfLine write FOpenEndOfLine;
@@ -437,6 +443,11 @@ begin
 
   FDelimiters := TCharacterSets.DefaultDelimiters;
   FAllowedCharacters := [];
+
+  FHighlightMethodCalls := False;
+  FMethodCallAttribute := TTextEditorHighlighterAttribute.Create('MethodCall');
+  FMethodCallAttribute.Element := TElement.NameOfMethod;
+  FMethodCallToken := TTextEditorToken.Create(FMethodCallAttribute);
 end;
 
 destructor TTextEditorRange.Destroy;
@@ -447,6 +458,8 @@ begin
   FOpenToken.Free;
   FCloseToken.Free;
 
+  FreeAndNil(FMethodCallToken);
+  FreeAndNil(FMethodCallAttribute);
   FreeAndNil(FAttribute);
 
   FKeyList.Free;
@@ -828,6 +841,7 @@ begin
   FCloseOnEndOfLine := False;
   FCloseParent := False;
   FHereDocument := False;
+  FHighlightMethodCalls := False;
   FNested := False;
 
   Reset;

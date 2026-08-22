@@ -843,6 +843,7 @@ type
     function WordStart(const ATextPosition: TTextEditorTextPosition): TTextEditorTextPosition; overload;
     function WordStart: TTextEditorTextPosition; overload;
     procedure AddCaret(const AViewPosition: TTextEditorViewPosition);
+    procedure AddCaretBookmark;
     procedure AddKeyCommand(const ACommand: TTextEditorCommand; const AShift: TShiftState; const AKey: Word; const ASecondaryShift: TShiftState = []; const ASecondaryKey: Word = 0);
     procedure AddKeyDownHandler(AHandler: TKeyEvent);
     procedure AddKeyPressHandler(AHandler: TTextEditorKeyPressWEvent);
@@ -881,7 +882,6 @@ type
     procedure DoRedo;
     procedure DoUndo;
     procedure DragDrop(const AData: TDragObject; const APoint: TPointF); override;
-    procedure DropCaretBookmark;
     procedure EndUndoBlock;
     procedure EndUpdate; reintroduce;
     procedure EnsureCursorPositionVisible(const AForceToMiddle: Boolean = False; const AEvenIfVisible: Boolean = False);
@@ -21598,8 +21598,8 @@ begin
       GoToNextBookmark;
     TKeyCommands.GoToPreviousBookmark:
       GoToPreviousBookmark;
-    TKeyCommands.DropCaretBookmark:
-      DropCaretBookmark;
+    TKeyCommands.AddCaretBookmark:
+      AddCaretBookmark;
     TKeyCommands.ReturnToCaretBookmark:
       ReturnToCaretBookmark;
     TKeyCommands.SwapCaretBookmark:
@@ -21843,7 +21843,7 @@ begin
   end;
 end;
 
-procedure TCustomTextEditor.DropCaretBookmark;
+procedure TCustomTextEditor.AddCaretBookmark;
 var
   LMark: TTextEditorMark;
   LTextPosition: TTextEditorTextPosition;
@@ -21859,7 +21859,6 @@ begin
 
   FCaretBookmarkList.Add(LMark);
 
-  { Keep the stack bounded }
   while FCaretBookmarkList.Count > 50 do
     FCaretBookmarkList.Delete(0);
 
