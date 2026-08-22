@@ -867,6 +867,7 @@ type
     function WordStart(const ATextPosition: TTextEditorTextPosition): TTextEditorTextPosition; overload;
     function WordStart: TTextEditorTextPosition; overload;
     procedure AddCaret(const AViewPosition: TTextEditorViewPosition);
+    procedure AddCaretBookmark;
     procedure AddKeyCommand(const ACommand: TTextEditorCommand; const AShift: TShiftState; const AKey: Word; const ASecondaryShift: TShiftState = []; const ASecondaryKey: Word = 0);
     procedure AddKeyDownHandler(AHandler: TKeyEvent);
     procedure AddKeyPressHandler(AHandler: TTextEditorKeyPressWEvent);
@@ -900,7 +901,6 @@ type
 {$ENDIF}
     procedure DecPaintLock;
     procedure DeleteBookmark(ABookmark: TTextEditorMark); overload;
-    procedure DropCaretBookmark;
     procedure DeleteComments;
     procedure DeleteEmptyLines;
     procedure DeleteLines(const ALineNumber: Integer; const ACount: Integer);
@@ -22430,8 +22430,8 @@ begin
       GoToNextBookmark;
     TKeyCommands.GoToPreviousBookmark:
       GoToPreviousBookmark;
-    TKeyCommands.DropCaretBookmark:
-      DropCaretBookmark;
+    TKeyCommands.AddCaretBookmark:
+      AddCaretBookmark;
     TKeyCommands.ReturnToCaretBookmark:
       ReturnToCaretBookmark;
     TKeyCommands.SwapCaretBookmark:
@@ -22675,7 +22675,7 @@ begin
   end;
 end;
 
-procedure TCustomTextEditor.DropCaretBookmark;
+procedure TCustomTextEditor.AddCaretBookmark;
 var
   LMark: TTextEditorMark;
   LTextPosition: TTextEditorTextPosition;

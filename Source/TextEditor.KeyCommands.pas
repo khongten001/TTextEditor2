@@ -60,7 +60,7 @@ type
     OverwriteMode = 222;
     ToggleMode = 223;
     { Bookmark }
-    ToggleBookmark = 300;
+    AddCaretBookmark = 332;
     GoToBookmark1 = 310;
     GoToBookmark2 = 311;
     GoToBookmark3 = 312;
@@ -70,6 +70,10 @@ type
     GoToBookmark7 = 316;
     GoToBookmark8 = 317;
     GoToBookmark9 = 318;
+    GoToMatchingPair = 329;
+    GoToNextBookmark = 330;
+    GoToPreviousBookmark = 331;
+    ReturnToCaretBookmark = 333;
     SetBookmark1 = 320;
     SetBookmark2 = 321;
     SetBookmark3 = 322;
@@ -79,12 +83,8 @@ type
     SetBookmark7 = 326;
     SetBookmark8 = 327;
     SetBookmark9 = 328;
-    GoToMatchingPair = 329;
-    GoToNextBookmark = 330;
-    GoToPreviousBookmark = 331;
-    DropCaretBookmark = 332;
-    ReturnToCaretBookmark = 333;
     SwapCaretBookmark = 334;
+    ToggleBookmark = 300;
     ToggleNumberBookmark = 335;
     GoToLastEditPosition = 336;
     { Deletion }
@@ -238,76 +238,33 @@ type
 
 const
   EditorCommandStrings: array [0 .. 120] of TTextEditorCommandString = (
-    (Value: TKeyCommands.None; Name: 'TKeyCommands.None'),
-    (Value: TKeyCommands.Left; Name: 'TKeyCommands.Left'),
-    (Value: TKeyCommands.Right; Name: 'TKeyCommands.Right'),
-    (Value: TKeyCommands.Up; Name: 'TKeyCommands.Up'),
-    (Value: TKeyCommands.Down; Name: 'TKeyCommands.Down'),
-    (Value: TKeyCommands.WordLeft; Name: 'TKeyCommands.WordLeft'),
-    (Value: TKeyCommands.WordRight; Name: 'TKeyCommands.WordRight'),
-    (Value: TKeyCommands.LineBegin; Name: 'TKeyCommands.LineBegin'),
-    (Value: TKeyCommands.LineEnd; Name: 'TKeyCommands.LineEnd'),
-    (Value: TKeyCommands.PageUp; Name: 'TKeyCommands.PageUp'),
-    (Value: TKeyCommands.PageDown; Name: 'TKeyCommands.PageDown'),
-    (Value: TKeyCommands.PageLeft; Name: 'TKeyCommands.PageLeft'),
-    (Value: TKeyCommands.PageRight; Name: 'TKeyCommands.PageRight'),
-    (Value: TKeyCommands.PageTop; Name: 'TKeyCommands.PageTop'),
-    (Value: TKeyCommands.PageBottom; Name: 'TKeyCommands.PageBottom'),
-    (Value: TKeyCommands.EditorTop; Name: 'TKeyCommands.EditorTop'),
-    (Value: TKeyCommands.EditorBottom; Name: 'TKeyCommands.EditorBottom'),
-    (Value: TKeyCommands.GoToXY; Name: 'TKeyCommands.GoToXY'),
-    (Value: TKeyCommands.SelectionLeft; Name: 'TKeyCommands.SelectionLeft'),
-    (Value: TKeyCommands.SelectionRight; Name: 'TKeyCommands.SelectionRight'),
-    (Value: TKeyCommands.SelectionUp; Name: 'TKeyCommands.SelectionUp'),
-    (Value: TKeyCommands.SelectionDown; Name: 'TKeyCommands.SelectionDown'),
-    (Value: TKeyCommands.SelectionWordLeft; Name: 'TKeyCommands.SelectionWordLeft'),
-    (Value: TKeyCommands.SelectionWordRight; Name: 'TKeyCommands.SelectionWordRight'),
-    (Value: TKeyCommands.SelectionLineBegin; Name: 'TKeyCommands.SelectionLineBegin'),
-    (Value: TKeyCommands.SelectionLineEnd; Name: 'TKeyCommands.SelectionLineEnd'),
-    (Value: TKeyCommands.SelectionPageUp; Name: 'TKeyCommands.SelectionPageUp'),
-    (Value: TKeyCommands.SelectionPageDown; Name: 'TKeyCommands.SelectionPageDown'),
-    (Value: TKeyCommands.SelectionPageLeft; Name: 'TKeyCommands.SelectionPageLeft'),
-    (Value: TKeyCommands.SelectionPageRight; Name: 'TKeyCommands.SelectionPageRight'),
-    (Value: TKeyCommands.SelectionPageTop; Name: 'TKeyCommands.SelectionPageTop'),
-    (Value: TKeyCommands.SelectionPageBottom; Name: 'TKeyCommands.SelectionPageBottom'),
-    (Value: TKeyCommands.SelectionEditorTop; Name: 'TKeyCommands.SelectionEditorTop'),
-    (Value: TKeyCommands.SelectionEditorBottom; Name: 'TKeyCommands.SelectionEditorBottom'),
-    (Value: TKeyCommands.SelectionGoToXY; Name: 'TKeyCommands.SelectionGoToXY'),
-    (Value: TKeyCommands.SelectionWord; Name: 'TKeyCommands.SelectionWord'),
-    (Value: TKeyCommands.SelectAll; Name: 'TKeyCommands.SelectAll'),
-    (Value: TKeyCommands.ScrollUp; Name: 'TKeyCommands.ScrollUp'),
-    (Value: TKeyCommands.ScrollDown; Name: 'TKeyCommands.ScrollDown'),
-    (Value: TKeyCommands.ScrollLeft; Name: 'TKeyCommands.ScrollLeft'),
-    (Value: TKeyCommands.ScrollRight; Name: 'TKeyCommands.ScrollRight'),
+    (Value: TKeyCommands.AddCaretBookmark; Name: 'TKeyCommands.AddCaretBookmark'),
+    (Value: TKeyCommands.AlternatingCase; Name: 'TKeyCommands.AlternatingCase'),
+    (Value: TKeyCommands.AlternatingCaseBlock; Name: 'TKeyCommands.AlternatingCaseBlock'),
     (Value: TKeyCommands.Backspace; Name: 'TKeyCommands.Backspace'),
-    (Value: TKeyCommands.DeleteChar; Name: 'TKeyCommands.DeleteChar'),
-    (Value: TKeyCommands.DeleteWhitespaceForward; Name: 'TKeyCommands.DeleteWhitespaceForward'),
-    (Value: TKeyCommands.DeleteWhitespaceBackward; Name: 'TKeyCommands.DeleteWhitespaceBackward'),
-    (Value: TKeyCommands.DeleteWord; Name: 'TKeyCommands.DeleteWord'),
-    (Value: TKeyCommands.DeleteWordForward; Name: 'TKeyCommands.DeleteWordForward'),
-    (Value: TKeyCommands.DeleteWordBackward; Name: 'TKeyCommands.DeleteWordBackward'),
-    (Value: TKeyCommands.DeleteBeginningOfLine; Name: 'TKeyCommands.DeleteBeginningOfLine'),
-    (Value: TKeyCommands.DeleteEndOfLine; Name: 'TKeyCommands.DeleteEndOfLine'),
-    (Value: TKeyCommands.DeleteLine; Name: 'TKeyCommands.DeleteLine'),
-    (Value: TKeyCommands.Clear; Name: 'TKeyCommands.Clear'),
-    (Value: TKeyCommands.LineBreak; Name: 'TKeyCommands.LineBreak'),
-    (Value: TKeyCommands.InsertLine; Name: 'TKeyCommands.InsertLine'),
-    (Value: TKeyCommands.Char; Name: 'TKeyCommands.Char'),
-    (Value: TKeyCommands.ImeStr; Name: 'TKeyCommands.ImeStr'),
-    (Value: TKeyCommands.Undo; Name: 'TKeyCommands.Undo'),
-    (Value: TKeyCommands.Redo; Name: 'TKeyCommands.Redo'),
-    (Value: TKeyCommands.Cut; Name: 'TKeyCommands.Cut'),
-    (Value: TKeyCommands.Copy; Name: 'TKeyCommands.Copy'),
-    (Value: TKeyCommands.Paste; Name: 'TKeyCommands.Paste'),
-    (Value: TKeyCommands.InsertMode; Name: 'TKeyCommands.InsertMode'),
-    (Value: TKeyCommands.OverwriteMode; Name: 'TKeyCommands.OverwriteMode'),
-    (Value: TKeyCommands.ToggleMode; Name: 'TKeyCommands.ToggleMode'),
+    (Value: TKeyCommands.BlockComment; Name: 'TKeyCommands.BlockComment'),
     (Value: TKeyCommands.BlockIndent; Name: 'TKeyCommands.BlockIndent'),
     (Value: TKeyCommands.BlockUnindent; Name: 'TKeyCommands.BlockUnindent'),
-    (Value: TKeyCommands.Tab; Name: 'TKeyCommands.Tab'),
-    (Value: TKeyCommands.ShiftTab; Name: 'TKeyCommands.ShiftTab'),
-    (Value: TKeyCommands.UserFirst; Name: 'TKeyCommands.UserFirst'),
-    (Value: TKeyCommands.ToggleBookmark; Name: 'TKeyCommands.ToggleBookmark'),
+    (Value: TKeyCommands.Char; Name: 'TKeyCommands.Char'),
+    (Value: TKeyCommands.Clear; Name: 'TKeyCommands.Clear'),
+    (Value: TKeyCommands.Copy; Name: 'TKeyCommands.Copy'),
+    (Value: TKeyCommands.Cut; Name: 'TKeyCommands.Cut'),
+    (Value: TKeyCommands.DeleteBeginningOfLine; Name: 'TKeyCommands.DeleteBeginningOfLine'),
+    (Value: TKeyCommands.DeleteChar; Name: 'TKeyCommands.DeleteChar'),
+    (Value: TKeyCommands.DeleteEndOfLine; Name: 'TKeyCommands.DeleteEndOfLine'),
+    (Value: TKeyCommands.DeleteLine; Name: 'TKeyCommands.DeleteLine'),
+    (Value: TKeyCommands.DeleteWhitespaceBackward; Name: 'TKeyCommands.DeleteWhitespaceBackward'),
+    (Value: TKeyCommands.DeleteWhitespaceForward; Name: 'TKeyCommands.DeleteWhitespaceForward'),
+    (Value: TKeyCommands.DeleteWord; Name: 'TKeyCommands.DeleteWord'),
+    (Value: TKeyCommands.DeleteWordBackward; Name: 'TKeyCommands.DeleteWordBackward'),
+    (Value: TKeyCommands.DeleteWordForward; Name: 'TKeyCommands.DeleteWordForward'),
+    (Value: TKeyCommands.Down; Name: 'TKeyCommands.Down'),
+    (Value: TKeyCommands.EditorBottom; Name: 'TKeyCommands.EditorBottom'),
+    (Value: TKeyCommands.EditorTop; Name: 'TKeyCommands.EditorTop'),
+    (Value: TKeyCommands.FoldingCollapseLine; Name: 'TKeyCommands.FoldingCollapseLine'),
+    (Value: TKeyCommands.FoldingExpandLine; Name: 'TKeyCommands.FoldingExpandLine'),
+    (Value: TKeyCommands.FoldingGoToNext; Name: 'TKeyCommands.FoldingGoToNext'),
+    (Value: TKeyCommands.FoldingGoToPrevious; Name: 'TKeyCommands.FoldingGoToPrevious'),
     (Value: TKeyCommands.GoToBookmark1; Name: 'TKeyCommands.GoToBookmark1'),
     (Value: TKeyCommands.GoToBookmark2; Name: 'TKeyCommands.GoToBookmark2'),
     (Value: TKeyCommands.GoToBookmark3; Name: 'TKeyCommands.GoToBookmark3'),
@@ -317,6 +274,64 @@ const
     (Value: TKeyCommands.GoToBookmark7; Name: 'TKeyCommands.GoToBookmark7'),
     (Value: TKeyCommands.GoToBookmark8; Name: 'TKeyCommands.GoToBookmark8'),
     (Value: TKeyCommands.GoToBookmark9; Name: 'TKeyCommands.GoToBookmark9'),
+    (Value: TKeyCommands.GoToLastEditPosition; Name: 'TKeyCommands.GoToLastEditPosition'),
+    (Value: TKeyCommands.GoToMatchingPair; Name: 'TKeyCommands.GoToMatchingPair'),
+    (Value: TKeyCommands.GoToNextBookmark; Name: 'TKeyCommands.GoToNextBookmark'),
+    (Value: TKeyCommands.GoToPreviousBookmark; Name: 'TKeyCommands.GoToPreviousBookmark'),
+    (Value: TKeyCommands.GoToXY; Name: 'TKeyCommands.GoToXY'),
+    (Value: TKeyCommands.ImeStr; Name: 'TKeyCommands.ImeStr'),
+    (Value: TKeyCommands.InsertLine; Name: 'TKeyCommands.InsertLine'),
+    (Value: TKeyCommands.InsertMode; Name: 'TKeyCommands.InsertMode'),
+    (Value: TKeyCommands.KeywordsLowerCase; Name: 'TKeyCommands.KeywordsLowerCase'),
+    (Value: TKeyCommands.KeywordsTitleCase; Name: 'TKeyCommands.KeywordsTitleCase'),
+    (Value: TKeyCommands.KeywordsUpperCase; Name: 'TKeyCommands.KeywordsUpperCase'),
+    (Value: TKeyCommands.Left; Name: 'TKeyCommands.Left'),
+    (Value: TKeyCommands.LineBegin; Name: 'TKeyCommands.LineBegin'),
+    (Value: TKeyCommands.LineBreak; Name: 'TKeyCommands.LineBreak'),
+    (Value: TKeyCommands.LineComment; Name: 'TKeyCommands.LineComment'),
+    (Value: TKeyCommands.LineEnd; Name: 'TKeyCommands.LineEnd'),
+    (Value: TKeyCommands.LowerCase; Name: 'TKeyCommands.LowerCase'),
+    (Value: TKeyCommands.LowerCaseBlock; Name: 'TKeyCommands.LowerCaseBlock'),
+    (Value: TKeyCommands.MoveLinesDown; Name: 'TKeyCommands.MoveLinesDown'),
+    (Value: TKeyCommands.MoveLinesUp; Name: 'TKeyCommands.MoveLinesUp'),
+    (Value: TKeyCommands.None; Name: 'TKeyCommands.None'),
+    (Value: TKeyCommands.OverwriteMode; Name: 'TKeyCommands.OverwriteMode'),
+    (Value: TKeyCommands.PageBottom; Name: 'TKeyCommands.PageBottom'),
+    (Value: TKeyCommands.PageDown; Name: 'TKeyCommands.PageDown'),
+    (Value: TKeyCommands.PageLeft; Name: 'TKeyCommands.PageLeft'),
+    (Value: TKeyCommands.PageRight; Name: 'TKeyCommands.PageRight'),
+    (Value: TKeyCommands.PageTop; Name: 'TKeyCommands.PageTop'),
+    (Value: TKeyCommands.PageUp; Name: 'TKeyCommands.PageUp'),
+    (Value: TKeyCommands.Paste; Name: 'TKeyCommands.Paste'),
+    (Value: TKeyCommands.Redo; Name: 'TKeyCommands.Redo'),
+    (Value: TKeyCommands.ReturnToCaretBookmark; Name: 'TKeyCommands.ReturnToCaretBookmark'),
+    (Value: TKeyCommands.Right; Name: 'TKeyCommands.Right'),
+    (Value: TKeyCommands.ScrollDown; Name: 'TKeyCommands.ScrollDown'),
+    (Value: TKeyCommands.ScrollLeft; Name: 'TKeyCommands.ScrollLeft'),
+    (Value: TKeyCommands.ScrollRight; Name: 'TKeyCommands.ScrollRight'),
+    (Value: TKeyCommands.ScrollUp; Name: 'TKeyCommands.ScrollUp'),
+    (Value: TKeyCommands.SearchNext; Name: 'TKeyCommands.SearchNext'),
+    (Value: TKeyCommands.SearchPrevious; Name: 'TKeyCommands.SearchPrevious'),
+    (Value: TKeyCommands.SelectAll; Name: 'TKeyCommands.SelectAll'),
+    (Value: TKeyCommands.SelectionDown; Name: 'TKeyCommands.SelectionDown'),
+    (Value: TKeyCommands.SelectionEditorBottom; Name: 'TKeyCommands.SelectionEditorBottom'),
+    (Value: TKeyCommands.SelectionEditorTop; Name: 'TKeyCommands.SelectionEditorTop'),
+    (Value: TKeyCommands.SelectionGoToXY; Name: 'TKeyCommands.SelectionGoToXY'),
+    (Value: TKeyCommands.SelectionLeft; Name: 'TKeyCommands.SelectionLeft'),
+    (Value: TKeyCommands.SelectionLineBegin; Name: 'TKeyCommands.SelectionLineBegin'),
+    (Value: TKeyCommands.SelectionLineEnd; Name: 'TKeyCommands.SelectionLineEnd'),
+    (Value: TKeyCommands.SelectionPageBottom; Name: 'TKeyCommands.SelectionPageBottom'),
+    (Value: TKeyCommands.SelectionPageDown; Name: 'TKeyCommands.SelectionPageDown'),
+    (Value: TKeyCommands.SelectionPageLeft; Name: 'TKeyCommands.SelectionPageLeft'),
+    (Value: TKeyCommands.SelectionPageRight; Name: 'TKeyCommands.SelectionPageRight'),
+    (Value: TKeyCommands.SelectionPageTop; Name: 'TKeyCommands.SelectionPageTop'),
+    (Value: TKeyCommands.SelectionPageUp; Name: 'TKeyCommands.SelectionPageUp'),
+    (Value: TKeyCommands.SelectionRight; Name: 'TKeyCommands.SelectionRight'),
+    (Value: TKeyCommands.SelectionUp; Name: 'TKeyCommands.SelectionUp'),
+    (Value: TKeyCommands.SelectionWord; Name: 'TKeyCommands.SelectionWord'),
+    (Value: TKeyCommands.SelectionWordLeft; Name: 'TKeyCommands.SelectionWordLeft'),
+    (Value: TKeyCommands.SelectionWordRight; Name: 'TKeyCommands.SelectionWordRight'),
+    (Value: TKeyCommands.SentenceCase; Name: 'TKeyCommands.SentenceCase'),
     (Value: TKeyCommands.SetBookmark1; Name: 'TKeyCommands.SetBookmark1'),
     (Value: TKeyCommands.SetBookmark2; Name: 'TKeyCommands.SetBookmark2'),
     (Value: TKeyCommands.SetBookmark3; Name: 'TKeyCommands.SetBookmark3'),
@@ -326,36 +341,21 @@ const
     (Value: TKeyCommands.SetBookmark7; Name: 'TKeyCommands.SetBookmark7'),
     (Value: TKeyCommands.SetBookmark8; Name: 'TKeyCommands.SetBookmark8'),
     (Value: TKeyCommands.SetBookmark9; Name: 'TKeyCommands.SetBookmark9'),
-    (Value: TKeyCommands.GoToMatchingPair; Name: 'TKeyCommands.GoToMatchingPair'),
-    (Value: TKeyCommands.GoToNextBookmark; Name: 'TKeyCommands.GoToNextBookmark'),
-    (Value: TKeyCommands.GoToPreviousBookmark; Name: 'TKeyCommands.GoToPreviousBookmark'),
-    (Value: TKeyCommands.DropCaretBookmark; Name: 'TKeyCommands.DropCaretBookmark'),
-    (Value: TKeyCommands.ReturnToCaretBookmark; Name: 'TKeyCommands.ReturnToCaretBookmark'),
+    (Value: TKeyCommands.ShiftTab; Name: 'TKeyCommands.ShiftTab'),
     (Value: TKeyCommands.SwapCaretBookmark; Name: 'TKeyCommands.SwapCaretBookmark'),
-    (Value: TKeyCommands.ToggleNumberBookmark; Name: 'TKeyCommands.ToggleNumberBookmark'),
-    (Value: TKeyCommands.GoToLastEditPosition; Name: 'TKeyCommands.GoToLastEditPosition'),
+    (Value: TKeyCommands.Tab; Name: 'TKeyCommands.Tab'),
     (Value: TKeyCommands.Text; Name: 'TKeyCommands.Text'),
-    (Value: TKeyCommands.MoveLinesUp; Name: 'TKeyCommands.MoveLinesUp'),
-    (Value: TKeyCommands.MoveLinesDown; Name: 'TKeyCommands.MoveLinesDown'),
-    (Value: TKeyCommands.UpperCase; Name: 'TKeyCommands.UpperCase'),
-    (Value: TKeyCommands.LowerCase; Name: 'TKeyCommands.LowerCase'),
-    (Value: TKeyCommands.AlternatingCase; Name: 'TKeyCommands.AlternatingCase'),
-    (Value: TKeyCommands.SentenceCase; Name: 'TKeyCommands.SentenceCase'),
     (Value: TKeyCommands.TitleCase; Name: 'TKeyCommands.TitleCase'),
+    (Value: TKeyCommands.ToggleBookmark; Name: 'TKeyCommands.ToggleBookmark'),
+    (Value: TKeyCommands.ToggleMode; Name: 'TKeyCommands.ToggleMode'),
+    (Value: TKeyCommands.ToggleNumberBookmark; Name: 'TKeyCommands.ToggleNumberBookmark'),
+    (Value: TKeyCommands.Undo; Name: 'TKeyCommands.Undo'),
+    (Value: TKeyCommands.Up; Name: 'TKeyCommands.Up'),
+    (Value: TKeyCommands.UpperCase; Name: 'TKeyCommands.UpperCase'),
     (Value: TKeyCommands.UpperCaseBlock; Name: 'TKeyCommands.UpperCaseBlock'),
-    (Value: TKeyCommands.LowerCaseBlock; Name: 'TKeyCommands.LowerCaseBlock'),
-    (Value: TKeyCommands.AlternatingCaseBlock; Name: 'TKeyCommands.AlternatingCaseBlock'),
-    (Value: TKeyCommands.KeywordsUpperCase; Name: 'TKeyCommands.KeywordsUpperCase'),
-    (Value: TKeyCommands.KeywordsLowerCase; Name: 'TKeyCommands.KeywordsLowerCase'),
-    (Value: TKeyCommands.KeywordsTitleCase; Name: 'TKeyCommands.KeywordsTitleCase'),
-    (Value: TKeyCommands.SearchNext; Name: 'TKeyCommands.SearchNext'),
-    (Value: TKeyCommands.SearchPrevious; Name: 'TKeyCommands.SearchPrevious'),
-    (Value: TKeyCommands.LineComment; Name: 'TKeyCommands.LineComment'),
-    (Value: TKeyCommands.BlockComment; Name: 'TKeyCommands.BlockComment'),
-    (Value: TKeyCommands.FoldingCollapseLine; Name: 'TKeyCommands.FoldingCollapseLine'),
-    (Value: TKeyCommands.FoldingExpandLine; Name: 'TKeyCommands.FoldingExpandLine'),
-    (Value: TKeyCommands.FoldingGoToNext; Name: 'TKeyCommands.FoldingGoToNext'),
-    (Value: TKeyCommands.FoldingGoToPrevious; Name: 'TKeyCommands.FoldingGoToPrevious'),
+    (Value: TKeyCommands.UserFirst; Name: 'TKeyCommands.UserFirst'),
+    (Value: TKeyCommands.WordLeft; Name: 'TKeyCommands.WordLeft'),
+    (Value: TKeyCommands.WordRight; Name: 'TKeyCommands.WordRight'),
     (Value: TKeyCommands.ZoomIn; Name: 'TKeyCommands.ZoomIn'),
     (Value: TKeyCommands.ZoomOut; Name: 'TKeyCommands.ZoomOut'),
     (Value: TKeyCommands.ZoomReset; Name: 'TKeyCommands.ZoomReset')
@@ -735,7 +735,7 @@ begin
   Add(TKeyCommands.DeleteLine, [ssCtrl], Ord('Y'));
   Add(TKeyCommands.DeleteEndOfLine, [ssCtrl, ssShift], Ord('Y'));
   { Bookmarks }
-  Add(TKeyCommands.ToggleBookmark, [ssCtrl], vkF2);
+  Add(TKeyCommands.AddCaretBookmark, [ssCtrl, ssShift], Ord('B'));
   Add(TKeyCommands.GoToBookmark1, [ssCtrl], Ord('1'));
   Add(TKeyCommands.GoToBookmark2, [ssCtrl], Ord('2'));
   Add(TKeyCommands.GoToBookmark3, [ssCtrl], Ord('3'));
@@ -745,6 +745,11 @@ begin
   Add(TKeyCommands.GoToBookmark7, [ssCtrl], Ord('7'));
   Add(TKeyCommands.GoToBookmark8, [ssCtrl], Ord('8'));
   Add(TKeyCommands.GoToBookmark9, [ssCtrl], Ord('9'));
+  Add(TKeyCommands.GoToLastEditPosition, [ssCtrl, ssAlt], vkBack);
+  Add(TKeyCommands.GoToMatchingPair, [ssCtrl], Ord('M'));
+  Add(TKeyCommands.GoToNextBookmark, [], vkF2);
+  Add(TKeyCommands.GoToPreviousBookmark, [ssShift], vkF2);
+  Add(TKeyCommands.ReturnToCaretBookmark, [], vkEscape);
   Add(TKeyCommands.SetBookmark1, [ssCtrl, ssShift], Ord('1'));
   Add(TKeyCommands.SetBookmark2, [ssCtrl, ssShift], Ord('2'));
   Add(TKeyCommands.SetBookmark3, [ssCtrl, ssShift], Ord('3'));
@@ -754,15 +759,9 @@ begin
   Add(TKeyCommands.SetBookmark7, [ssCtrl, ssShift], Ord('7'));
   Add(TKeyCommands.SetBookmark8, [ssCtrl, ssShift], Ord('8'));
   Add(TKeyCommands.SetBookmark9, [ssCtrl, ssShift], Ord('9'));
-  Add(TKeyCommands.GoToMatchingPair, [ssCtrl], Ord('M'));
-  Add(TKeyCommands.GoToNextBookmark, [], vkF2);
-  Add(TKeyCommands.GoToPreviousBookmark, [ssShift], vkF2);
-  Add(TKeyCommands.ToggleNumberBookmark, [ssCtrl], Ord('B'));
-  Add(TKeyCommands.DropCaretBookmark, [ssCtrl, ssShift], Ord('B'));
-  Add(TKeyCommands.ReturnToCaretBookmark, [], vkEscape);
-  Add(TKeyCommands.ReturnToCaretBookmark, [ssCtrl, ssAlt], Ord('B'));
   Add(TKeyCommands.SwapCaretBookmark, [ssShift], vkEscape);
-  Add(TKeyCommands.GoToLastEditPosition, [ssCtrl, ssAlt], vkBack);
+  Add(TKeyCommands.ToggleBookmark, [ssCtrl], vkF2);
+  Add(TKeyCommands.ToggleNumberBookmark, [ssCtrl], Ord('B'));
   { Comments }
   Add(TKeyCommands.LineComment, [ssCtrl], vkSlash);
   Add(TKeyCommands.BlockComment, [ssCtrl, ssShift], vkSlash);
