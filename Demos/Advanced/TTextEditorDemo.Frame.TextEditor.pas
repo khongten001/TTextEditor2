@@ -3,7 +3,7 @@
 { Define TEXTEDITOR_LSP to enable the language server panel.
   Requires the LSP-Pascal-Library sources (https://github.com/rickard67/LSP-Pascal-Library) on the search path. }
 
-{$DEFINE TEXTEDITOR_LSP}
+{.$DEFINE TEXTEDITOR_LSP}
 
 interface
 
