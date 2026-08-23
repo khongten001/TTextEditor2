@@ -1,4 +1,4 @@
-﻿unit TTextEditorDemo.Form.Main;
+unit TTextEditorDemo.Form.Main;
 
 interface
 
@@ -438,6 +438,7 @@ begin
     FFileName := OpenDialog.FileName;
 
     FFrameTextEditor.TextEditor.LoadFromFile(FFileName);
+    FFrameTextEditor.OpenDocument(FFileName);
 
     UpdateCaption;
     UpdateModifiedState;

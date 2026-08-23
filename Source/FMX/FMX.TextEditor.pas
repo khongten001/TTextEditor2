@@ -575,7 +575,6 @@ type
     procedure EnsureCaretPositionInsideLines(const ATextPosition: TTextEditorTextPosition);
     procedure FindWords(const AWord: string; const AList: TList; const ACaseSensitive: Boolean; const AWholeWordsOnly: Boolean);
     procedure FontChanged(ASender: TObject);
-    procedure FreeMultiCarets;
     procedure GetCommentAtTextPosition(const ATextPosition: TTextEditorTextPosition; var AComment: string);
     procedure GetMinimapLeftRight(var ALeft: Single; var ARight: Single);
     procedure IncCharacterCount(const AText: string);
@@ -897,6 +896,7 @@ type
     procedure FoldingGoToNext;
     procedure FoldingGoToPrevious;
     procedure FreeBookmarkImages;
+    procedure FreeMultiCarets;
     procedure GoToBookmark(const AIndex: Integer);
     procedure GoToLastEditPosition;
     procedure GoToLine(const ALine: Integer);
@@ -4965,7 +4965,6 @@ end;
 procedure TCustomTextEditor.CaretChanged(ASender: TObject);
 begin
   FreeMultiCarets;
-  ResetCaret;
 end;
 
 procedure TCustomTextEditor.CheckIfAtMatchingKeywords;

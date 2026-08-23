@@ -1,19 +1,50 @@
 ﻿unit TTextEditorDemo.Frame.TextEditor;
 
+{ Define TEXTEDITOR_LSP to enable the language server panel.
+  Requires the LSP-Pascal-Library sources (https://github.com/rickard67/LSP-Pascal-Library) on the search path. }
+
+{$DEFINE TEXTEDITOR_LSP}
+
 interface
 
 uses
-  Winapi.Windows, System.Classes, System.SysUtils, Vcl.Controls, Vcl.ExtCtrls, Vcl.Forms, Vcl.StdCtrls, TextEditor, TextEditor.MacroRecorder;
+  Winapi.Windows, System.Classes, System.SysUtils, Vcl.Controls, Vcl.ExtCtrls, Vcl.Forms, Vcl.StdCtrls, TextEditor,
+  TextEditor.MacroRecorder, TextEditor.Types
+{$IFDEF TEXTEDITOR_LSP}
+  , TextEditor.LanguageServer
+{$ENDIF};
 
 type
   TFrameTextEditor = class(TFrame)
+    ButtonServerStart: TButton;
+    ButtonServerStop: TButton;
+    EditServerCommandLine: TEdit;
+    LabelServerCommandLine: TLabel;
     LabelTestRun: TLabel;
+    MemoServerLog: TMemo;
+    PanelLanguageServer: TPanel;
     PanelTests: TPanel;
     TextEditor: TTextEditor;
+    procedure ButtonServerStartClick(Sender: TObject);
+    procedure ButtonServerStopClick(Sender: TObject);
     procedure TextEditorCreateHighlighterStream(const ASender: TObject; const AName: string; var AStream: TStream);
   private
     FClipboardDirty: Boolean;
+    FFileName: string;
     FTestMacroRecorder: TCustomEditorMacroRecorder;
+{$IFDEF TEXTEDITOR_LSP}
+    FHoverPosition: TTextEditorTextPosition;
+    FHoverTimer: TTimer;
+    FLanguageServer: TTextEditorLanguageServer;
+    function FindDelphiLSPConfiguration(const AFileName: string): string;
+    function LanguageIdFromFileName(const AFileName: string): string;
+    procedure HoverTimerTimer(ASender: TObject);
+    procedure LanguageServerGotoLocation(const ASender: TObject; const ALocation: TTextEditorLanguageServerLocation);
+    procedure LanguageServerLog(const ASender: TObject; const AMessage: string);
+    procedure TextEditorCompletionProposalExecute(const ASender: TObject; var AParams: TCompletionProposalParams);
+    procedure TextEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure TextEditorMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+{$ENDIF}
     function RunCaretNavigationSeed(ASeed: Integer): string;
     function RunClipboardRoundTripSeed(ASeed: Integer): string;
     function RunMacroSeed(ASeed: Integer): string;
@@ -27,6 +58,9 @@ type
     procedure PrepareTestClipboard;
     procedure RunTestLoop(const ASeeds: Integer; const ARun: TFunc<Integer, string>);
   public
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+    procedure OpenDocument(const AFileName: string);
     procedure RunCaretNavigationTest;
     procedure RunClipboardRoundTripTest;
     procedure RunHighlighterSweepTest;
@@ -35,6 +69,9 @@ type
     procedure RunSaveLoadTest;
     procedure RunSelectionInvariantsTest;
     procedure RunUndoRedoTest;
+{$IFDEF TEXTEDITOR_LSP}
+    property LanguageServer: TTextEditorLanguageServer read FLanguageServer;
+{$ENDIF}
   end;
 
 implementation
@@ -42,7 +79,259 @@ implementation
 {$R *.dfm}
 
 uses
-  System.IOUtils, System.Math, Vcl.Clipbrd, Vcl.Dialogs, TextEditor.KeyCommands, TextEditor.Types;
+  System.IOUtils, System.Math, Vcl.Clipbrd, Vcl.Dialogs, TextEditor.KeyCommands;
+
+
+procedure TFrameTextEditor.ButtonServerStartClick(Sender: TObject);
+begin
+{$IFDEF TEXTEDITOR_LSP}
+  if FFileName.IsEmpty then
+  begin
+    MemoServerLog.Lines.Add('Open a file first so the server gets a document and a root folder.');
+    Exit;
+  end;
+
+  FLanguageServer.ServerCommandLine := EditServerCommandLine.Text;
+  FLanguageServer.RootPath := ExtractFileDir(FFileName);
+  FLanguageServer.ServerDirectory := FLanguageServer.RootPath;
+  FLanguageServer.Configuration := '';
+
+  var LConfigurationFileName := FindDelphiLSPConfiguration(FFileName);
+
+  if not LConfigurationFileName.IsEmpty then
+  begin
+    MemoServerLog.Lines.Add('Using ' + LConfigurationFileName);
+    FLanguageServer.Configuration := '{"settings":{"settingsFile":"' +
+      TTextEditorLanguageServer.FileNameToUri(LConfigurationFileName) + '"}}';
+  end;
+
+  FLanguageServer.OpenDocument(FFileName, LanguageIdFromFileName(FFileName));
+  FLanguageServer.Start;
+
+  ButtonServerStart.Enabled := False;
+  ButtonServerStop.Enabled := True;
+{$ENDIF}
+end;
+
+{$IFDEF TEXTEDITOR_LSP}
+
+constructor TFrameTextEditor.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+
+  FLanguageServer := TTextEditorLanguageServer.Create(Self);
+  FLanguageServer.Editor := TextEditor;
+  FLanguageServer.OnGotoLocation := LanguageServerGotoLocation;
+  FLanguageServer.OnLog := LanguageServerLog;
+
+  FHoverTimer := TTimer.Create(Self);
+  FHoverTimer.Enabled := False;
+  FHoverTimer.Interval := 600;
+  FHoverTimer.OnTimer := HoverTimerTimer;
+
+  TextEditor.OnCompletionProposalExecute := TextEditorCompletionProposalExecute;
+  TextEditor.OnKeyDown := TextEditorKeyDown;
+  TextEditor.OnMouseMove := TextEditorMouseMove;
+end;
+
+destructor TFrameTextEditor.Destroy;
+begin
+  FLanguageServer.Stop;
+
+  inherited Destroy;
+end;
+
+function TFrameTextEditor.LanguageIdFromFileName(const AFileName: string): string;
+var
+  LExtension: string;
+begin
+  LExtension := ExtractFileExt(AFileName).ToLower;
+
+  if (LExtension = '.pas') or (LExtension = '.pp') or (LExtension = '.dpr') or (LExtension = '.lpr') or (LExtension = '.inc') then
+    Exit('pascal');
+
+  if (LExtension = '.c') or (LExtension = '.h') then
+    Exit('c');
+
+  if (LExtension = '.cpp') or (LExtension = '.cc') or (LExtension = '.cxx') or (LExtension = '.hpp') then
+    Exit('cpp');
+
+  if (LExtension = '.js') or (LExtension = '.mjs') then
+    Exit('javascript');
+
+  if LExtension = '.ts' then
+    Exit('typescript');
+
+  if LExtension = '.py' then
+    Exit('python');
+
+  if LExtension = '.rs' then
+    Exit('rust');
+
+  if LExtension = '.go' then
+    Exit('go');
+
+  if LExtension = '.cs' then
+    Exit('csharp');
+
+  if LExtension = '.java' then
+    Exit('java');
+
+  if LExtension = '.json' then
+    Exit('json');
+
+  if LExtension = '.md' then
+    Exit('markdown');
+
+  Result := 'plaintext';
+end;
+
+procedure TFrameTextEditor.OpenDocument(const AFileName: string);
+begin
+  FFileName := AFileName;
+
+  FLanguageServer.OpenDocument(AFileName, LanguageIdFromFileName(AFileName));
+end;
+
+{ DelphiLSP learns the compiler options from a <Project>.delphilsp.json (exported by RAD Studio or written by hand) that the
+  client points to through workspace/didChangeConfiguration. Without it the server only offers keywords. The file is searched
+  from the document's folder upwards since units usually sit below the project. }
+function TFrameTextEditor.FindDelphiLSPConfiguration(const AFileName: string): string;
+var
+  LDirectory, LParentDirectory: string;
+  LFiles: TArray<string>;
+begin
+  LDirectory := ExtractFileDir(AFileName);
+
+  while not LDirectory.IsEmpty do
+  begin
+    LFiles := TDirectory.GetFiles(LDirectory, '*.delphilsp.json');
+
+    if Length(LFiles) > 0 then
+      Exit(LFiles[0]);
+
+    LParentDirectory := ExtractFileDir(LDirectory);
+
+    if LParentDirectory = LDirectory then
+      Break;
+
+    LDirectory := LParentDirectory;
+  end;
+
+  Result := '';
+end;
+
+procedure TFrameTextEditor.ButtonServerStopClick(Sender: TObject);
+begin
+  FLanguageServer.Stop;
+
+  ButtonServerStart.Enabled := True;
+  ButtonServerStop.Enabled := False;
+end;
+
+procedure TFrameTextEditor.LanguageServerLog(const ASender: TObject; const AMessage: string);
+begin
+  MemoServerLog.Lines.Add(AMessage);
+
+  if AMessage.StartsWith('Server exited') then
+  begin
+    ButtonServerStart.Enabled := True;
+    ButtonServerStop.Enabled := False;
+  end;
+end;
+
+procedure TFrameTextEditor.LanguageServerGotoLocation(const ASender: TObject; const ALocation: TTextEditorLanguageServerLocation);
+begin
+  if not SameText(ALocation.FileName, FFileName) then
+    MemoServerLog.Lines.Add(Format('Definition is in %s (%d:%d) - open it to navigate.', [ALocation.FileName,
+      ALocation.TextPosition.Line + 1, ALocation.TextPosition.Char]));
+end;
+
+procedure TFrameTextEditor.TextEditorCompletionProposalExecute(const ASender: TObject; var AParams: TCompletionProposalParams);
+begin
+  if FLanguageServer.Completion(AParams.Items) then
+  begin
+    AParams.Options.ParseItemsFromText := False;
+    AParams.Options.AddHighlighterKeywords := False;
+    AParams.Options.AddSnippets := False;
+    AParams.Options.ShowDescription := True;
+  end;
+end;
+
+procedure TFrameTextEditor.TextEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  if (Key = VK_F12) and (ssCtrl in Shift) then
+  begin
+    Key := 0;
+    FLanguageServer.GotoDefinition;
+  end;
+end;
+
+procedure TFrameTextEditor.TextEditorMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+var
+  LTextPosition: TTextEditorTextPosition;
+begin
+  if not FLanguageServer.Initialized then
+    Exit;
+
+  if not TextEditor.GetTextPositionOfMouse(LTextPosition) then
+    Exit;
+
+  if (LTextPosition.Line = FHoverPosition.Line) and (LTextPosition.Char = FHoverPosition.Char) then
+    Exit;
+
+  FHoverPosition := LTextPosition;
+  Application.CancelHint;
+
+  FHoverTimer.Enabled := False;
+  FHoverTimer.Enabled := True;
+end;
+
+procedure TFrameTextEditor.HoverTimerTimer(ASender: TObject);
+var
+  LText: string;
+  LDiagnostic: TTextEditorLanguageServerDiagnostic;
+begin
+  FHoverTimer.Enabled := False;
+
+  if FLanguageServer.DiagnosticAt(FHoverPosition, LDiagnostic) then
+    LText := LDiagnostic.Message
+  else
+    LText := FLanguageServer.Hover(FHoverPosition);
+
+  if LText.IsEmpty then
+    Exit;
+
+  TextEditor.Hint := LText;
+  TextEditor.ShowHint := True;
+  Application.ActivateHint(Mouse.CursorPos);
+end;
+
+{$ELSE}
+
+constructor TFrameTextEditor.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+
+  PanelLanguageServer.Visible := False;
+end;
+
+destructor TFrameTextEditor.Destroy;
+begin
+  inherited Destroy;
+end;
+
+procedure TFrameTextEditor.OpenDocument(const AFileName: string);
+begin
+  FFileName := AFileName;
+end;
+
+procedure TFrameTextEditor.ButtonServerStopClick(Sender: TObject);
+begin
+end;
+
+{$ENDIF}
+
 
 procedure TFrameTextEditor.TextEditorCreateHighlighterStream(const ASender: TObject; const AName: string; var AStream: TStream);
 begin
@@ -274,7 +563,7 @@ begin
     TextEditor.TextPosition := LPosition;
     LPositions[LIndex] := TextEditor.TextPosition;
 
-    TextEditor.DropCaretBookmark;
+    TextEditor.AddCaretBookmark;
   end;
 
   for var LIndex := cBookmarkCount - 1 downto 0 do
@@ -292,7 +581,7 @@ begin
 
   { Swap toggles between the caret and the topmost caret bookmark }
   TextEditor.TextPosition := LPositions[0];
-  TextEditor.DropCaretBookmark;
+  TextEditor.AddCaretBookmark;
   TextEditor.TextPosition := LPositions[1];
   TextEditor.ExecuteCommand(TKeyCommands.SwapCaretBookmark, #0, nil);
 
