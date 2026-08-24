@@ -343,6 +343,7 @@ type
     FCaret: TTextEditorCaret;
     FCaretHelper: TTextEditorCaretHelper;
     FChainedEditor: TCustomTextEditor;
+    FChangeNotifications: TList<TNotifyEvent>;
     FCharacterCount: TTextEditorCharacterCount;
     FCodeFolding: TTextEditorCodeFolding;
     FCodeFoldings: TTextEditorCodeFoldings;
@@ -867,6 +868,7 @@ type
     function WordStart: TTextEditorTextPosition; overload;
     procedure AddCaret(const AViewPosition: TTextEditorViewPosition);
     procedure AddCaretBookmark;
+    procedure AddChangeNotification(const AEvent: TNotifyEvent);
     procedure AddKeyCommand(const ACommand: TTextEditorCommand; const AShift: TShiftState; const AKey: Word; const ASecondaryShift: TShiftState = []; const ASecondaryKey: Word = 0);
     procedure AddKeyDownHandler(AHandler: TKeyEvent);
     procedure AddKeyPressHandler(AHandler: TTextEditorKeyPressWEvent);
@@ -957,6 +959,7 @@ type
     procedure PasteFromClipboard;
     procedure RegisterCommandHandler(const AHookedCommandEvent: TTextEditorHookedCommandEvent; const AHandlerData: Pointer);
     procedure RemoveChainedEditor;
+    procedure RemoveChangeNotification(const AEvent: TNotifyEvent);
     procedure RemoveKeyDownHandler(AHandler: TKeyEvent);
     procedure RemoveKeyPressHandler(AHandler: TTextEditorKeyPressWEvent);
     procedure RemoveKeyUpHandler(AHandler: TKeyEvent);
@@ -1710,6 +1713,7 @@ begin
     RemoveChainedEditor;
 
   FBorder.Free;
+  FChangeNotifications.Free;
 
   ClearCodeFolding;
 
@@ -11912,6 +11916,25 @@ begin
 
   if Assigned(FEvents.OnChange) then
     FEvents.OnChange(Self);
+
+  if Assigned(FChangeNotifications) then
+  for var LIndex := FChangeNotifications.Count - 1 downto 0 do
+    FChangeNotifications[LIndex](Self);
+end;
+
+procedure TCustomTextEditor.AddChangeNotification(const AEvent: TNotifyEvent);
+begin
+  if not Assigned(FChangeNotifications) then
+    FChangeNotifications := TList<TNotifyEvent>.Create;
+
+  if not FChangeNotifications.Contains(AEvent) then
+    FChangeNotifications.Add(AEvent);
+end;
+
+procedure TCustomTextEditor.RemoveChangeNotification(const AEvent: TNotifyEvent);
+begin
+  if Assigned(FChangeNotifications) then
+    FChangeNotifications.Remove(AEvent);
 end;
 
 procedure TCustomTextEditor.DoCopyToClipboard(const AText: string);

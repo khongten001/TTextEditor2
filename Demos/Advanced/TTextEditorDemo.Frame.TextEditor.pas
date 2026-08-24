@@ -3,7 +3,7 @@
 { Define TEXTEDITOR_LSP to enable the language server panel.
   Requires the LSP-Pascal-Library sources (https://github.com/rickard67/LSP-Pascal-Library) on the search path. }
 
-{.$DEFINE TEXTEDITOR_LSP}
+{$DEFINE TEXTEDITOR_LSP}
 
 interface
 
@@ -18,8 +18,11 @@ type
   TFrameTextEditor = class(TFrame)
     ButtonServerStart: TButton;
     ButtonServerStop: TButton;
+    ButtonSettingsFile: TButton;
     EditServerCommandLine: TEdit;
+    EditSettingsFile: TEdit;
     LabelServerCommandLine: TLabel;
+    LabelSettingsFile: TLabel;
     LabelTestRun: TLabel;
     MemoServerLog: TMemo;
     PanelLanguageServer: TPanel;
@@ -27,17 +30,21 @@ type
     TextEditor: TTextEditor;
     procedure ButtonServerStartClick(Sender: TObject);
     procedure ButtonServerStopClick(Sender: TObject);
+    procedure ButtonSettingsFileClick(Sender: TObject);
     procedure TextEditorCreateHighlighterStream(const ASender: TObject; const AName: string; var AStream: TStream);
   private
     FClipboardDirty: Boolean;
     FFileName: string;
     FTestMacroRecorder: TCustomEditorMacroRecorder;
 {$IFDEF TEXTEDITOR_LSP}
+    FHintWindow: THintWindow;
     FHoverPosition: TTextEditorTextPosition;
     FHoverTimer: TTimer;
+    FHoverWord: string;
     FLanguageServer: TTextEditorLanguageServer;
     function FindDelphiLSPConfiguration(const AFileName: string): string;
     function LanguageIdFromFileName(const AFileName: string): string;
+    procedure HideHoverHint;
     procedure HoverTimerTimer(ASender: TObject);
     procedure LanguageServerGotoLocation(const ASender: TObject; const ALocation: TTextEditorLanguageServerLocation);
     procedure LanguageServerLog(const ASender: TObject; const AMessage: string);
@@ -96,14 +103,19 @@ begin
   FLanguageServer.ServerDirectory := FLanguageServer.RootPath;
   FLanguageServer.Configuration := '';
 
-  var LConfigurationFileName := FindDelphiLSPConfiguration(FFileName);
+  var LConfigurationFileName := Trim(EditSettingsFile.Text);
 
-  if not LConfigurationFileName.IsEmpty then
+  if LConfigurationFileName.IsEmpty then
+    LConfigurationFileName := FindDelphiLSPConfiguration(FFileName);
+
+  if FileExists(LConfigurationFileName) then
   begin
     MemoServerLog.Lines.Add('Using ' + LConfigurationFileName);
     FLanguageServer.Configuration := '{"settings":{"settingsFile":"' +
       TTextEditorLanguageServer.FileNameToUri(LConfigurationFileName) + '"}}';
-  end;
+  end
+  else
+    MemoServerLog.Lines.Add('No settings file - a DelphiLSP server will only offer keywords.');
 
   FLanguageServer.OpenDocument(FFileName, LanguageIdFromFileName(FFileName));
   FLanguageServer.Start;
@@ -190,7 +202,28 @@ procedure TFrameTextEditor.OpenDocument(const AFileName: string);
 begin
   FFileName := AFileName;
 
+  if Trim(EditSettingsFile.Text).IsEmpty then
+    EditSettingsFile.Text := FindDelphiLSPConfiguration(AFileName);
+
   FLanguageServer.OpenDocument(AFileName, LanguageIdFromFileName(AFileName));
+end;
+
+procedure TFrameTextEditor.ButtonSettingsFileClick(Sender: TObject);
+var
+  LOpenDialog: TOpenDialog;
+begin
+  LOpenDialog := TOpenDialog.Create(Self);
+  try
+    LOpenDialog.Filter := 'DelphiLSP settings (*.delphilsp.json)|*.delphilsp.json|All files (*.*)|*.*';
+
+    if not FFileName.IsEmpty then
+      LOpenDialog.InitialDir := ExtractFileDir(FFileName);
+
+    if LOpenDialog.Execute then
+      EditSettingsFile.Text := LOpenDialog.FileName;
+  finally
+    LOpenDialog.Free;
+  end;
 end;
 
 { DelphiLSP learns the compiler options from a <Project>.delphilsp.json (exported by RAD Studio or written by hand) that the
@@ -260,6 +293,8 @@ end;
 
 procedure TFrameTextEditor.TextEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
+  HideHoverHint;
+
   if (Key = VK_F12) and (ssCtrl in Shift) then
   begin
     Key := 0;
@@ -267,30 +302,46 @@ begin
   end;
 end;
 
+procedure TFrameTextEditor.HideHoverHint;
+begin
+  if Assigned(FHintWindow) then
+    FHintWindow.ReleaseHandle;
+end;
+
 procedure TFrameTextEditor.TextEditorMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
 var
   LTextPosition: TTextEditorTextPosition;
+  LWord: string;
 begin
   if not FLanguageServer.Initialized then
     Exit;
 
   if not TextEditor.GetTextPositionOfMouse(LTextPosition) then
+  begin
+    HideHoverHint;
     Exit;
+  end;
 
-  if (LTextPosition.Line = FHoverPosition.Line) and (LTextPosition.Char = FHoverPosition.Char) then
+  LWord := TextEditor.WordAtTextPosition(LTextPosition);
+
+  if (LTextPosition.Line = FHoverPosition.Line) and (LWord = FHoverWord) and not LWord.IsEmpty then
     Exit;
 
   FHoverPosition := LTextPosition;
-  Application.CancelHint;
+  FHoverWord := LWord;
+
+  HideHoverHint;
 
   FHoverTimer.Enabled := False;
-  FHoverTimer.Enabled := True;
+  FHoverTimer.Enabled := not LWord.IsEmpty;
 end;
 
 procedure TFrameTextEditor.HoverTimerTimer(ASender: TObject);
 var
   LText: string;
   LDiagnostic: TTextEditorLanguageServerDiagnostic;
+  LRect: TRect;
+  LPoint: TPoint;
 begin
   FHoverTimer.Enabled := False;
 
@@ -302,9 +353,17 @@ begin
   if LText.IsEmpty then
     Exit;
 
-  TextEditor.Hint := LText;
-  TextEditor.ShowHint := True;
-  Application.ActivateHint(Mouse.CursorPos);
+  if not Assigned(FHintWindow) then
+  begin
+    FHintWindow := THintWindow.Create(Self);
+    FHintWindow.Font.Name := TextEditor.Fonts.Text.Name;
+  end;
+
+  LRect := FHintWindow.CalcHintRect(600, LText, nil);
+  LPoint := Mouse.CursorPos;
+
+  OffsetRect(LRect, LPoint.X, LPoint.Y + 20);
+  FHintWindow.ActivateHint(LRect, LText);
 end;
 
 {$ELSE}
@@ -327,6 +386,10 @@ begin
 end;
 
 procedure TFrameTextEditor.ButtonServerStopClick(Sender: TObject);
+begin
+end;
+
+procedure TFrameTextEditor.ButtonSettingsFileClick(Sender: TObject);
 begin
 end;
 

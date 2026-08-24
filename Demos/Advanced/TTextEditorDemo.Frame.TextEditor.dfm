@@ -44,9 +44,9 @@ object FrameTextEditor: TFrameTextEditor
   end
   object PanelLanguageServer: TPanel
     Left = 0
-    Top = 319
+    Top = 273
     Width = 640
-    Height = 120
+    Height = 166
     Align = alBottom
     BevelOuter = bvNone
     ParentColor = True
@@ -54,7 +54,7 @@ object FrameTextEditor: TFrameTextEditor
     TabOrder = 2
     DesignSize = (
       640
-      120)
+      166)
     object LabelServerCommandLine: TLabel
       Left = 2
       Top = 8
@@ -95,15 +95,41 @@ object FrameTextEditor: TFrameTextEditor
       TabOrder = 2
       OnClick = ButtonServerStopClick
     end
+    object LabelSettingsFile: TLabel
+      Left = 2
+      Top = 54
+      Width = 60
+      Height = 15
+      Caption = 'Settings file'
+    end
+    object EditSettingsFile: TEdit
+      Left = 0
+      Top = 72
+      Width = 531
+      Height = 23
+      Anchors = [akLeft, akTop, akRight]
+      TabOrder = 3
+      TextHint = 'Optional <Project>.delphilsp.json for DelphiLSP - found automatically when next to the opened file or above it'
+    end
+    object ButtonSettingsFile: TButton
+      Left = 547
+      Top = 71
+      Width = 85
+      Height = 25
+      Anchors = [akTop, akRight]
+      Caption = 'Browse...'
+      TabOrder = 4
+      OnClick = ButtonSettingsFileClick
+    end
     object MemoServerLog: TMemo
       Left = 0
-      Top = 56
+      Top = 102
       Width = 640
       Height = 58
       Anchors = [akLeft, akTop, akRight, akBottom]
       ReadOnly = True
       ScrollBars = ssVertical
-      TabOrder = 3
+      TabOrder = 5
     end
   end
 end

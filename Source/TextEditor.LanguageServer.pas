@@ -45,7 +45,6 @@ type
     FOnDiagnostics: TTextEditorLanguageServerDiagnosticsEvent;
     FOnGotoLocation: TTextEditorLanguageServerLocationEvent;
     FOnLog: TTextEditorLanguageServerLogEvent;
-    FPreviousOnChange: TNotifyEvent;
     FPreviousOnCustomTokenAttribute: TTextEditorCustomTokenAttributeEvent;
     FRootPath: string;
     FServerCommandLine: string;
@@ -58,6 +57,7 @@ type
     function PositionToLSP(const ATextPosition: TTextEditorTextPosition): TLSPPosition;
     function PositionToEditor(const APosition: TLSPPosition): TTextEditorTextPosition;
     function QuotedCommandLine(const ACommandLine: string): string;
+    function StripHoverMarkdown(const AText: string): string;
     procedure ApplyDiagnostics;
     procedure ChangeTimerTimer(ASender: TObject);
     procedure ClientError(ASender: TObject; const AId, AErrorCode: Integer; const AErrorMessage: string; ARetriggerRequest: Boolean);
@@ -66,10 +66,10 @@ type
     procedure ClientInitialized(ASender: TObject; var AValue: TLSPInitializeResult);
     procedure ClientLogMessage(ASender: TObject; const AType: TLSPMessageType; const AMessage: string);
     procedure ClientPublishDiagnostics(ASender: TObject; const AUri: string; const AVersion: Cardinal; const ADiagnostics: TArray<TLSPDiagnostic>);
-    procedure EditorChange(ASender: TObject);
     procedure EditorCustomTokenAttribute(const ASender: TObject; const AText: string; const ALine: Integer; const AChar: Integer;
       var AForegroundColor: TColor; var ABackgroundColor: TColor; var AStyles: TFontStyles; var AUnderline: TTextEditorUnderline;
       var AUnderlineColor: TColor);
+    procedure EditorDocumentChanged(ASender: TObject);
     procedure HookEditor;
     procedure Log(const AMessage: string);
     procedure SendDidChange;
@@ -122,6 +122,7 @@ uses
 
 const
   CHANGE_DEBOUNCE_MS = 300;
+  MAX_COMPLETION_DESCRIPTION_LENGTH = 100;
 
 constructor TTextEditorLanguageServer.Create(AOwner: TComponent);
 begin
@@ -223,9 +224,7 @@ begin
     Exit;
 
   FEditor.FreeNotification(Self);
-
-  FPreviousOnChange := FEditor.OnChange;
-  FEditor.OnChange := EditorChange;
+  FEditor.AddChangeNotification(EditorDocumentChanged);
 
   FPreviousOnCustomTokenAttribute := FEditor.OnCustomTokenAttribute;
   FEditor.OnCustomTokenAttribute := EditorCustomTokenAttribute;
@@ -236,9 +235,9 @@ begin
   if not Assigned(FEditor) then
     Exit;
 
-  FEditor.OnChange := FPreviousOnChange;
+  FEditor.RemoveChangeNotification(EditorDocumentChanged);
+
   FEditor.OnCustomTokenAttribute := FPreviousOnCustomTokenAttribute;
-  FPreviousOnChange := nil;
   FPreviousOnCustomTokenAttribute := nil;
 end;
 
@@ -429,11 +428,8 @@ begin
   ApplyDiagnostics;
 end;
 
-procedure TTextEditorLanguageServer.EditorChange(ASender: TObject);
+procedure TTextEditorLanguageServer.EditorDocumentChanged(ASender: TObject);
 begin
-  if Assigned(FPreviousOnChange) then
-    FPreviousOnChange(ASender);
-
   if FDocumentOpen then
   begin
     FChangeTimer.Enabled := False;
@@ -654,6 +650,9 @@ begin
       var LProposalItem: TTextEditorCompletionProposalItem;
       LProposalItem.Keyword := if LItem.insertText.IsEmpty then LItem.&label else LItem.insertText;
       LProposalItem.Description := LItem.detail;
+
+      if Length(LProposalItem.Description) > MAX_COMPLETION_DESCRIPTION_LENGTH then
+        LProposalItem.Description := Copy(LProposalItem.Description, 1, MAX_COMPLETION_DESCRIPTION_LENGTH - 3) + '...';
       LProposalItem.SnippetIndex := -1;
 
       AItems.Add(LProposalItem);
@@ -663,6 +662,46 @@ begin
   finally
     LList.Free;
   end;
+end;
+
+function TTextEditorLanguageServer.StripHoverMarkdown(const AText: string): string;
+var
+  LLines: TArray<string>;
+  LLine, LText: string;
+  LBracketIndex, LLinkEndIndex: Integer;
+begin
+  LText := '';
+  LLines := AText.Replace('```', '').Split([#10]);
+
+  for LLine in LLines do
+  begin
+    var LTrimmedLine := LLine.TrimRight;
+
+    LBracketIndex := LTrimmedLine.IndexOf('[');
+
+    while LBracketIndex >= 0 do
+    begin
+      LLinkEndIndex := LTrimmedLine.IndexOf(')', LBracketIndex);
+
+      if (LLinkEndIndex > LBracketIndex) and (LTrimmedLine.IndexOf('](', LBracketIndex) > LBracketIndex) and
+        (LTrimmedLine.IndexOf('](', LBracketIndex) < LLinkEndIndex) then
+      begin
+        var LLabelText := LTrimmedLine.Substring(LBracketIndex + 1, LTrimmedLine.IndexOf('](', LBracketIndex) - LBracketIndex - 1);
+        LTrimmedLine := LTrimmedLine.Substring(0, LBracketIndex) + LLabelText + LTrimmedLine.Substring(LLinkEndIndex + 1);
+      end
+      else
+        Break;
+
+      LBracketIndex := LTrimmedLine.IndexOf('[');
+    end;
+
+    if LTrimmedLine.Trim.IsEmpty and (LText.IsEmpty or LText.EndsWith(sLineBreak + sLineBreak)) then
+      Continue;
+
+    LText := LText + LTrimmedLine.Trim + sLineBreak;
+  end;
+
+  Result := LText.Trim;
 end;
 
 function TTextEditorLanguageServer.Hover(const ATextPosition: TTextEditorTextPosition): string;
@@ -707,7 +746,7 @@ begin
       for var LMarked in LHover.contentsMarkedArray do
         LText := LText + LMarked.value + sLineBreak;
 
-    Result := LText.Replace('```', '').Trim;
+    Result := StripHoverMarkdown(LText);
   finally
     LHover.Free;
   end;
