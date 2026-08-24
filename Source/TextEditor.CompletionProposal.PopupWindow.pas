@@ -26,11 +26,19 @@ type
     FLines: TTextEditorLines;
     FMargin: Integer;
     FOnValidate: TTextEditorValidateEvent;
+    FScrollBarDragOffset: Integer;
+    FScrollBarDragging: Boolean;
     FSelectedLine: Integer;
     FShowDescription: Boolean;
     FTopLine: Integer;
     FValueSet: Boolean;
     function GetItemHeight: Integer;
+    function ScrollBarArrowSize: Integer;
+    function ScrollBarMaxTopLine: Integer;
+    function ScrollBarRect: TRect;
+    function ScrollBarThumbRect: TRect;
+    function ScrollBarVisible: Boolean;
+    function UseStyledScrollBar: Boolean;
     procedure ActivateDropShadow(const AHandle: THandle);
     procedure AddKeyHandlers;
     procedure EditorKeyDown(ASender: TObject; var AKey: Word; AShift: TShiftState);
@@ -38,6 +46,7 @@ type
     procedure HandleDblClick(ASender: TObject);
     procedure HandleOnValidate(ASender: TObject; const AEndToken: Char);
     procedure MoveSelectedLine(const ALineCount: Integer);
+    procedure PaintStyledScrollBar(const ACanvas: TCanvas);
     procedure RemoveKeyHandlers;
     procedure SetCurrentString(const AValue: string);
     procedure SetTopLine(const AValue: Integer);
@@ -46,6 +55,8 @@ type
   protected
     procedure Paint; override;
     procedure MouseDown(AButton: TMouseButton; AShift: TShiftState; X, Y: Integer); override;
+    procedure MouseMove(AShift: TShiftState; X, Y: Integer); override;
+    procedure MouseUp(AButton: TMouseButton; AShift: TShiftState; X, Y: Integer); override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -66,7 +77,7 @@ implementation
 
 uses
   System.Generics.Defaults, System.Math, System.SysUtils, System.UITypes, TextEditor, TextEditor.CompletionProposal.Snippets,
-  TextEditor.Consts, TextEditor.Highlighter, TextEditor.KeyCommands, TextEditor.PaintHelper;
+  TextEditor.Consts, TextEditor.Highlighter, TextEditor.KeyCommands, TextEditor.PaintHelper, Vcl.Themes;
 
 constructor TTextEditorCompletionProposalPopupWindow.Create(AOwner: TComponent);
 begin
@@ -393,6 +404,9 @@ begin
     end;
   end;
 
+  if ScrollBarVisible then
+    PaintStyledScrollBar(FBitmapBuffer.Canvas);
+
   Canvas.Draw(0, 0, FBitmapBuffer);
 end;
 
@@ -594,6 +608,8 @@ var
       FItemDescriptionWidth := TextWidth(FBitmapBuffer.Canvas, LText);
       Inc(LWidth, FItemDescriptionWidth);
     end;
+
+    LWidth := Min(LWidth, Screen.WorkAreaRect.Width - 2 * FMargin);
 
     LHeight := FItemHeight * Min(FItems.Count, FCompletionProposal.VisibleLines) + 2;
 
@@ -881,15 +897,79 @@ begin
   end;
 end;
 
+function TTextEditorCompletionProposalPopupWindow.UseStyledScrollBar: Boolean;
+begin
+  Result := TStyleManager.IsCustomStyleActive;
+end;
+
+function TTextEditorCompletionProposalPopupWindow.ScrollBarVisible: Boolean;
+begin
+  Result := UseStyledScrollBar and (Length(FItemIndexArray) > FCompletionProposal.VisibleLines);
+end;
+
+function TTextEditorCompletionProposalPopupWindow.ScrollBarArrowSize: Integer;
+begin
+  Result := GetSystemMetrics(SM_CYVSCROLL);
+end;
+
+function TTextEditorCompletionProposalPopupWindow.ScrollBarMaxTopLine: Integer;
+begin
+  Result := Max(0, Length(FItemIndexArray) - FCompletionProposal.VisibleLines);
+end;
+
+function TTextEditorCompletionProposalPopupWindow.ScrollBarRect: TRect;
+begin
+  Result := Rect(ClientWidth - GetSystemMetrics(SM_CXVSCROLL), 0, ClientWidth, ClientHeight);
+end;
+
+function TTextEditorCompletionProposalPopupWindow.ScrollBarThumbRect: TRect;
+var
+  LRect: TRect;
+  LTrackTop, LTrackHeight, LThumbHeight, LThumbTop: Integer;
+begin
+  LRect := ScrollBarRect;
+  LTrackTop := LRect.Top + ScrollBarArrowSize;
+  LTrackHeight := LRect.Height - 2 * ScrollBarArrowSize;
+  LThumbHeight := EnsureRange(MulDiv(LTrackHeight, FCompletionProposal.VisibleLines, Max(1, Length(FItemIndexArray))),
+    Min(ScrollBarArrowSize, LTrackHeight), LTrackHeight);
+  LThumbTop := LTrackTop + MulDiv(TopLine, LTrackHeight - LThumbHeight, Max(1, ScrollBarMaxTopLine));
+
+  Result := Rect(LRect.Left, LThumbTop, LRect.Right, LThumbTop + LThumbHeight);
+end;
+
+procedure TTextEditorCompletionProposalPopupWindow.PaintStyledScrollBar(const ACanvas: TCanvas);
+var
+  LRect, LArrowRect: TRect;
+begin
+  LRect := ScrollBarRect;
+
+  StyleServices.DrawElement(ACanvas.Handle, StyleServices.GetElementDetails(tsUpperTrackVertNormal), LRect);
+
+  LArrowRect := Rect(LRect.Left, LRect.Top, LRect.Right, LRect.Top + ScrollBarArrowSize);
+  StyleServices.DrawElement(ACanvas.Handle, StyleServices.GetElementDetails(tsArrowBtnUpNormal), LArrowRect);
+
+  LArrowRect := Rect(LRect.Left, LRect.Bottom - ScrollBarArrowSize, LRect.Right, LRect.Bottom);
+  StyleServices.DrawElement(ACanvas.Handle, StyleServices.GetElementDetails(tsArrowBtnDownNormal), LArrowRect);
+
+  StyleServices.DrawElement(ACanvas.Handle, StyleServices.GetElementDetails(tsThumbBtnVertNormal), ScrollBarThumbRect);
+end;
+
 procedure TTextEditorCompletionProposalPopupWindow.UpdateScrollBar;
 var
   LScrollInfo: TScrollInfo;
   LItemCount: Integer;
 begin
+  if UseStyledScrollBar then
+  begin
+    ShowScrollBar(Handle, SB_VERT, False);
+    Invalidate;
+    Exit;
+  end;
+
   LItemCount := Length(FItemIndexArray);
 
   LScrollInfo.cbSize := SizeOf(ScrollInfo);
-  LScrollInfo.fMask := SIF_DISABLENOSCROLL;
+  LScrollInfo.fMask := SIF_RANGE or SIF_PAGE or SIF_POS or SIF_DISABLENOSCROLL;
   LScrollInfo.nMin := 0;
   LScrollInfo.nMax := Max(0, LItemCount - 1);
   LScrollInfo.nPage := FCompletionProposal.VisibleLines;
@@ -910,6 +990,7 @@ begin
     if TopLine + FCompletionProposal.VisibleLines >= LItemCount then
       EnableScrollBar(Handle, SB_VERT, ESB_DISABLE_DOWN);
   end;
+
 end;
 
 procedure TTextEditorCompletionProposalPopupWindow.WMVScroll(var AMessage: TWMScroll);
@@ -937,7 +1018,34 @@ begin
 end;
 
 procedure TTextEditorCompletionProposalPopupWindow.MouseDown(AButton: TMouseButton; AShift: TShiftState; X, Y: Integer);
+var
+  LRect, LThumbRect: TRect;
 begin
+  if (AButton = mbLeft) and ScrollBarVisible and (X >= ScrollBarRect.Left) then
+  begin
+    LRect := ScrollBarRect;
+    LThumbRect := ScrollBarThumbRect;
+
+    if Y < LRect.Top + ScrollBarArrowSize then
+      TopLine := Max(0, TopLine - 1)
+    else
+    if Y >= LRect.Bottom - ScrollBarArrowSize then
+      TopLine := Min(ScrollBarMaxTopLine, TopLine + 1)
+    else
+    if Y < LThumbRect.Top then
+      TopLine := Max(0, TopLine - FCompletionProposal.VisibleLines)
+    else
+    if Y >= LThumbRect.Bottom then
+      TopLine := Min(ScrollBarMaxTopLine, TopLine + FCompletionProposal.VisibleLines)
+    else
+    begin
+      FScrollBarDragging := True;
+      FScrollBarDragOffset := Y - LThumbRect.Top;
+    end;
+
+    Exit;
+  end;
+
   if not CodeInsight then
   begin
     FSelectedLine := Max(0, TopLine + (Y div FItemHeight));
@@ -946,6 +1054,34 @@ begin
 
     Refresh;
   end;
+end;
+
+procedure TTextEditorCompletionProposalPopupWindow.MouseMove(AShift: TShiftState; X, Y: Integer);
+var
+  LRect: TRect;
+  LTrackHeight, LMaxThumbTop: Integer;
+begin
+  if FScrollBarDragging then
+  begin
+    LRect := ScrollBarRect;
+    LTrackHeight := LRect.Height - 2 * ScrollBarArrowSize;
+    LMaxThumbTop := LTrackHeight - ScrollBarThumbRect.Height;
+
+    if LMaxThumbTop > 0 then
+      TopLine := EnsureRange(MulDiv(Y - FScrollBarDragOffset - LRect.Top - ScrollBarArrowSize, ScrollBarMaxTopLine,
+        LMaxThumbTop), 0, ScrollBarMaxTopLine);
+
+    Exit;
+  end;
+
+  inherited MouseMove(AShift, X, Y);
+end;
+
+procedure TTextEditorCompletionProposalPopupWindow.MouseUp(AButton: TMouseButton; AShift: TShiftState; X, Y: Integer);
+begin
+  FScrollBarDragging := False;
+
+  inherited MouseUp(AButton, AShift, X, Y);
 end;
 
 end.
