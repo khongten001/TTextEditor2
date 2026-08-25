@@ -3,7 +3,7 @@
 { Define TEXTEDITOR_LSP to enable the language server panel.
   Requires the LSP-Pascal-Library sources (https://github.com/rickard67/LSP-Pascal-Library) on the search path. }
 
-{$DEFINE TEXTEDITOR_LSP}
+{.$DEFINE TEXTEDITOR_LSP}
 
 interface
 
@@ -29,7 +29,6 @@ type
     PanelTests: TPanel;
     TextEditor: TTextEditor;
     procedure ButtonServerStartClick(Sender: TObject);
-    procedure ButtonServerStopClick(Sender: TObject);
     procedure ButtonSettingsFileClick(Sender: TObject);
     procedure TextEditorCreateHighlighterStream(const ASender: TObject; const AName: string; var AStream: TStream);
   private
@@ -59,6 +58,7 @@ type
     function RunSaveLoadSeed(ASeed: Integer): string;
     function RunSelectionInvariantsSeed(ASeed: Integer): string;
     function RunUndoRedoSeed(ASeed: Integer): string;
+    function RunWordSelectionSeed(ASeed: Integer): string;
     function TestCommandNames(const ASeed, ASkip, ACount: Integer): string;
     procedure ExecuteTestCommand(const ACommand: Integer; const AViaCommandProcessor: Boolean = False);
     procedure LoadTestDocument;
@@ -76,6 +76,7 @@ type
     procedure RunSaveLoadTest;
     procedure RunSelectionInvariantsTest;
     procedure RunUndoRedoTest;
+    procedure RunWordSelectionTest;
 {$IFDEF TEXTEDITOR_LSP}
     property LanguageServer: TTextEditorLanguageServer read FLanguageServer;
 {$ENDIF}
@@ -86,7 +87,7 @@ implementation
 {$R *.dfm}
 
 uses
-  System.IOUtils, System.Math, Vcl.Clipbrd, Vcl.Dialogs, TextEditor.KeyCommands;
+  System.IOUtils, System.Math, System.StrUtils, Vcl.Clipbrd, Vcl.Dialogs, Vcl.Graphics, TextEditor.KeyCommands, TextEditor.PaintHelper;
 
 
 procedure TFrameTextEditor.ButtonServerStartClick(Sender: TObject);
@@ -385,10 +386,6 @@ begin
   FFileName := AFileName;
 end;
 
-procedure TFrameTextEditor.ButtonServerStopClick(Sender: TObject);
-begin
-end;
-
 procedure TFrameTextEditor.ButtonSettingsFileClick(Sender: TObject);
 begin
 end;
@@ -425,6 +422,7 @@ const
 
   cTestDocumentText = 'a1'#13#10'b2'#13#10'c3'#13#10'd4'#13#10'e5'#13#10;
   cTestDocumentState = 'a1,b2,c3,d4,e5,';
+  cSimilarTermColor = TColor($00FF00FF);
 
 type
   TTestClipboard = class(TPersistent)
@@ -1015,6 +1013,170 @@ begin
 
   ShowMessage('Done.');
   PanelTests.Visible := False;
+end;
+
+function TFrameTextEditor.RunWordSelectionSeed(ASeed: Integer): string;
+const
+  cWordCount = 6;
+  cCores: array [0 .. 3] of string = ('test', 'name', 'value', 'x1');
+  cPrefixCharacters = '$%:@';
+type
+  TTestWord = record
+    Core: string;
+    CoreBegin: Integer;
+    Decorated: string;
+    ExpectedSelection: string;
+  end;
+var
+  LWords: array [0 .. cWordCount - 1] of TTestWord;
+  LLine: string;
+  LExpandPrefix: Boolean;
+  LPosition: TTextEditorTextPosition;
+  LBitmap: TBitmap;
+
+  function IsHighlighted(const AChar, ALine: Integer): Boolean;
+  var
+    LCheckPosition: TTextEditorTextPosition;
+  begin
+    Result := False;
+
+    LCheckPosition.Char := AChar;
+    LCheckPosition.Line := ALine;
+
+    var LPoint := TextEditor.ViewPositionToPixels(TextEditor.TextToViewPosition(LCheckPosition));
+
+    for var LOffsetY := 1 to TextEditor.LineHeight - 2 do
+    if LBitmap.Canvas.Pixels[LPoint.X + 2, LPoint.Y + LOffsetY] = cSimilarTermColor then
+      Exit(True);
+  end;
+
+begin
+  Result := '';
+
+  RandSeed := ASeed;
+
+  LExpandPrefix := not Odd(ASeed);
+
+  if LExpandPrefix then
+    TextEditor.Selection.Options := TextEditor.Selection.Options + [soExpandPrefix]
+  else
+    TextEditor.Selection.Options := TextEditor.Selection.Options - [soExpandPrefix];
+
+  LLine := '';
+
+  for var LIndex := 0 to cWordCount - 1 do
+  begin
+    var LWord: TTestWord;
+    LWord.Core := cCores[Random(Length(cCores))];
+
+    var LPrefix := '';
+
+    for var LPrefixIndex := 1 to Random(3) do
+      LPrefix := LPrefix + cPrefixCharacters[Random(cPrefixCharacters.Length) + 1];
+
+    LWord.CoreBegin := LLine.Length + 1;
+    LWord.Decorated := LWord.Core;
+    LWord.ExpectedSelection := LWord.Core;
+
+    if not LPrefix.IsEmpty then
+    case Random(3) of
+      0: { Prefix only - $name }
+        begin
+          LWord.Decorated := LPrefix + LWord.Core;
+          LWord.CoreBegin := LWord.CoreBegin + LPrefix.Length;
+
+          if LExpandPrefix then
+            LWord.ExpectedSelection := LWord.Decorated;
+        end;
+      1: { Wrapping prefix - %test% - the mirrored trailing characters belong to the selection }
+        begin
+          LWord.Decorated := LPrefix + LWord.Core + ReverseString(LPrefix);
+          LWord.CoreBegin := LWord.CoreBegin + LPrefix.Length;
+
+          if LExpandPrefix then
+            LWord.ExpectedSelection := LWord.Decorated;
+        end;
+      2: { Suffix only - never part of the selection }
+        LWord.Decorated := LWord.Core + LPrefix;
+    end;
+
+    LWords[LIndex] := LWord;
+    LLine := LLine + LWord.Decorated + ' ';
+  end;
+
+  TextEditor.Text := LLine;
+
+  var LTarget := Random(cWordCount);
+
+  LPosition.Char := LWords[LTarget].CoreBegin + Random(LWords[LTarget].Core.Length);
+  LPosition.Line := 0;
+  TextEditor.TextPosition := LPosition;
+  TextEditor.ExecuteCommand(TKeyCommands.SelectionWord, #0, nil);
+
+  if TextEditor.SelectedText <> LWords[LTarget].ExpectedSelection then
+    Exit('Selected [' + TextEditor.SelectedText + '] instead of [' + LWords[LTarget].ExpectedSelection +
+      '] for RandSeed = ' + ASeed.ToString);
+
+  if TextEditor.WordAtTextPosition(LPosition) <> LWords[LTarget].ExpectedSelection then
+    Exit('Word at text position [' + TextEditor.WordAtTextPosition(LPosition) + '] differs from the selection [' +
+      LWords[LTarget].ExpectedSelection + '] for RandSeed = ' + ASeed.ToString);
+
+  { Every 100th seed: the term must highlight as one similar term on another line, prefix characters included }
+  if LExpandPrefix and (ASeed mod 100 = 0) and (LWords[LTarget].ExpectedSelection <> LWords[LTarget].Core) then
+  begin
+    TextEditor.Text := LLine + sLineBreak + 'zz ' + LWords[LTarget].Decorated + ' qq';
+    TextEditor.TextPosition := LPosition;
+    TextEditor.ExecuteCommand(TKeyCommands.SelectionWord, #0, nil);
+
+    LBitmap := TBitmap.Create;
+    try
+      LBitmap.SetSize(TextEditor.ClientWidth, TextEditor.ClientHeight);
+
+      { A VCL style hook can swallow WM_PAINT sent to a foreign canvas - capture the screen content instead of PaintTo }
+      TextEditor.Repaint;
+
+      var LDC := GetDC(TextEditor.Handle);
+      try
+        BitBlt(LBitmap.Canvas.Handle, 0, 0, TextEditor.ClientWidth, TextEditor.ClientHeight, LDC, 0, 0, SRCCOPY);
+      finally
+        ReleaseDC(TextEditor.Handle, LDC);
+      end;
+
+      var LOccurrenceBegin := 4;
+      var LOccurrenceEnd := LOccurrenceBegin + LWords[LTarget].Decorated.Length - 1;
+
+      if not IsHighlighted(LOccurrenceBegin, 1) or not IsHighlighted(LOccurrenceEnd, 1) then
+        Exit('Similar term [' + LWords[LTarget].Decorated + '] is not highlighted for RandSeed = ' + ASeed.ToString);
+
+      if IsHighlighted(1, 1) then
+        Exit('Text outside the similar term [' + LWords[LTarget].Decorated + '] is highlighted for RandSeed = ' +
+          ASeed.ToString);
+    finally
+      LBitmap.Free;
+    end;
+  end;
+end;
+
+procedure TFrameTextEditor.RunWordSelectionTest;
+var
+  LOptions: TTextEditorSelectionOptions;
+  LColor: TColor;
+begin
+  LOptions := TextEditor.Selection.Options;
+  LColor := TextEditor.Colors.SearchHighlighterBackground;
+
+  { Similar term highlighting compares highlighter tokens - the default empty highlighter has no usable tokens }
+  TextEditor.Highlighter.LoadFromFile(ExtractFilePath(ParamStr(0)) + '..\..\Highlighters\Object Pascal.json');
+
+  TextEditor.Selection.Options := TextEditor.Selection.Options + [soHighlightSimilarTerms] -
+    [soExpandRealNumbers, soTermsCaseSensitive];
+  TextEditor.Colors.SearchHighlighterBackground := cSimilarTermColor;
+  try
+    RunTestLoop(10000, RunWordSelectionSeed);
+  finally
+    TextEditor.Selection.Options := LOptions;
+    TextEditor.Colors.SearchHighlighterBackground := LColor;
+  end;
 end;
 
 end.

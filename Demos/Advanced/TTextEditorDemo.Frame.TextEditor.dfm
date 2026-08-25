@@ -62,6 +62,13 @@ object FrameTextEditor: TFrameTextEditor
       Height = 15
       Caption = 'Language server'
     end
+    object LabelSettingsFile: TLabel
+      Left = 2
+      Top = 54
+      Width = 61
+      Height = 15
+      Caption = 'Settings file'
+    end
     object EditServerCommandLine: TEdit
       Left = 0
       Top = 26
@@ -93,14 +100,6 @@ object FrameTextEditor: TFrameTextEditor
       Caption = 'Stop'
       Enabled = False
       TabOrder = 2
-      OnClick = ButtonServerStopClick
-    end
-    object LabelSettingsFile: TLabel
-      Left = 2
-      Top = 54
-      Width = 60
-      Height = 15
-      Caption = 'Settings file'
     end
     object EditSettingsFile: TEdit
       Left = 0
@@ -109,7 +108,9 @@ object FrameTextEditor: TFrameTextEditor
       Height = 23
       Anchors = [akLeft, akTop, akRight]
       TabOrder = 3
-      TextHint = 'Optional <Project>.delphilsp.json for DelphiLSP - found automatically when next to the opened file or above it'
+      TextHint = 
+        'Optional <Project>.delphilsp.json for DelphiLSP - found automati' +
+        'cally when next to the opened file or above it'
     end
     object ButtonSettingsFile: TButton
       Left = 547

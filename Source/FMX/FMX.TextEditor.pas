@@ -3991,6 +3991,7 @@ var
   LTextLine: string;
   LLength: Integer;
   LChar: Integer;
+  LPrefixIndex: Integer;
 begin
   Result := '';
 
@@ -4012,13 +4013,23 @@ begin
       (LTextLine[LTextPosition.Char - 1] in AAllowedBreakChars)) do
       Dec(LTextPosition.Char);
 
-    if soExpandRealNumbers in FSelection.Options then
-    while (LTextPosition.Char > 0) and (LTextLine[LTextPosition.Char] in TCharacterSets.RealNumbers) do
+    if (soExpandRealNumbers in FSelection.Options) and (LTextLine[LTextPosition.Char] in TCharacterSets.Numbers) then
+    while (LTextPosition.Char > 1) and (LTextLine[LTextPosition.Char - 1] in TCharacterSets.RealNumbers) do
       Dec(LTextPosition.Char);
 
     if soExpandPrefix in FSelection.Options then
-    while (LTextPosition.Char > 0) and CharInString(LTextLine[LTextPosition.Char - 1], FSelection.PrefixCharacters) do
-      Dec(LTextPosition.Char);
+    begin
+      LPrefixIndex := LTextPosition.Char - 1;
+
+      while (LTextPosition.Char > 1) and CharInString(LTextLine[LTextPosition.Char - 1], FSelection.PrefixCharacters) do
+        Dec(LTextPosition.Char);
+
+      while (LPrefixIndex >= LTextPosition.Char) and (LChar <= LLength) and (LTextLine[LChar] = LTextLine[LPrefixIndex]) do
+      begin
+        Inc(LChar);
+        Dec(LPrefixIndex);
+      end;
+    end;
 
     if LChar > LTextPosition.Char then
       Result := Copy(LTextLine, LTextPosition.Char, LChar - LTextPosition.Char);
@@ -9985,6 +9996,7 @@ var
   procedure CharScan;
   var
     LIndex: Integer;
+    LPrefixIndex: Integer;
   begin
     LBlockEndPosition.Char := LLength;
 
@@ -10023,12 +10035,19 @@ var
 
     if soExpandPrefix in FSelection.Options then
     begin
-      LIndex := LBlockBeginPosition.Char - 1;
+      LPrefixIndex := LBlockBeginPosition.Char - 1;
+      LIndex := LPrefixIndex;
 
       while (LIndex > 0) and CharInString(LTempString[LIndex], FSelection.PrefixCharacters) do
         Dec(LIndex);
 
       LBlockBeginPosition.Char := LIndex + 1;
+
+      while (LPrefixIndex > LIndex) and (LBlockEndPosition.Char <= LLength) and (LTempString[LBlockEndPosition.Char] = LTempString[LPrefixIndex]) do
+      begin
+        Inc(LBlockEndPosition.Char);
+        Dec(LPrefixIndex);
+      end;
     end;
   end;
 
@@ -16559,11 +16578,13 @@ var
   procedure PaintLines;
   var
     LWordAtSelection, LSelectedText: string;
+    LSelectedTextWithPrefix: Boolean;
 
     procedure GetWordAtSelection;
     var
       LTempTextPosition: TTextEditorTextPosition;
       LSelectionStartChar, LSelectionEndChar: Integer;
+      LLineText: string;
     begin
       LTempTextPosition := FPosition.SelectionEnd;
       LSelectionStartChar := FPosition.SelectionStart.Char;
@@ -16573,8 +16594,22 @@ var
         SwapInt(LSelectionStartChar, LSelectionEndChar);
 
       LTempTextPosition.Char := LSelectionEndChar - 1;
+
+      if soExpandPrefix in FSelection.Options then
+      begin
+        LLineText := FLines[LTempTextPosition.Line];
+
+        while (LTempTextPosition.Char > 1) and (LTempTextPosition.Char <= LLineText.Length) and
+          CharInString(LLineText[LTempTextPosition.Char], FSelection.PrefixCharacters) do
+          Dec(LTempTextPosition.Char);
+      end;
+
       LSelectedText := Copy(FLines[FPosition.SelectionStart.Line], LSelectionStartChar, LSelectionEndChar - LSelectionStartChar);
       LWordAtSelection := if FPosition.SelectionStart.Line = FPosition.SelectionEnd.Line then WordAtTextPosition(LTempTextPosition) else '';
+
+      LSelectedTextWithPrefix := (soExpandPrefix in FSelection.Options) and not LWordAtSelection.IsEmpty and
+        (LSelectedText = LWordAtSelection) and (CharInString(LSelectedText[1], FSelection.PrefixCharacters) or
+        CharInString(LSelectedText[LSelectedText.Length], FSelection.PrefixCharacters));
     end;
 
 var
@@ -16582,6 +16617,40 @@ var
   LTokenPosition: Integer;
   LTokenLength: Integer;
   LTokenText: string;
+
+    function IsTokenInSimilarTerm: Boolean;
+    var
+      LLineText: string;
+      LTermLength, LTokenBegin, LTermBegin, LTermIndex: Integer;
+      LCaseSensitive, LMatch: Boolean;
+    begin
+      Result := False;
+
+      LLineText := FLines[LCurrentLine];
+      LTermLength := LSelectedText.Length;
+      LTokenBegin := LTokenPosition + LWrappedUnvisibleLength + 1;
+      LCaseSensitive := soTermsCaseSensitive in FSelection.Options;
+
+      for LTermBegin := Max(1, LTokenBegin + LTokenLength - LTermLength) to LTokenBegin do
+      begin
+        if LTermBegin + LTermLength - 1 > LLineText.Length then
+          Break;
+
+        LMatch := True;
+
+        for LTermIndex := 0 to LTermLength - 1 do
+        if LCaseSensitive and (LLineText[LTermBegin + LTermIndex] <> LSelectedText[LTermIndex + 1]) or
+          not LCaseSensitive and (CaseUpper(LLineText[LTermBegin + LTermIndex]) <> CaseUpper(LSelectedText[LTermIndex + 1])) then
+        begin
+          LMatch := False;
+
+          Break;
+        end;
+
+        if LMatch then
+          Exit(True);
+      end;
+    end;
 
     procedure PrepareToken;
     var
@@ -16698,6 +16767,9 @@ var
               if LIsCustomBackgroundColor then
                 LKeyword := LSelectedText;
             end;
+
+            if not LIsCustomBackgroundColor and LSelectedTextWithPrefix then
+              LIsCustomBackgroundColor := IsTokenInSimilarTerm;
           end;
 
           if LIsCustomBackgroundColor then
@@ -16730,6 +16802,7 @@ var
       if not AMinimap or AMinimap and (moShowSelection in FMinimap.Options) then
       begin
         LWordAtSelection := '';
+        LSelectedTextWithPrefix := False;
         LAnySelection := GetSelectionAvailable or FMultiEdit.SelectionAvailable;
 
         if LAnySelection then

@@ -38,6 +38,7 @@ type
     ActionTestSaveLoad: TAction;
     ActionTestSelectionInvariants: TAction;
     ActionTestUndoRedo: TAction;
+    ActionTestWordSelection: TAction;
     ActionToolBar1: TActionToolBar;
     ActionViewDarkTheme: TAction;
     ActionViewPrintPreview: TAction;
@@ -89,6 +90,7 @@ type
     procedure ActionTestSaveLoadExecute(Sender: TObject);
     procedure ActionTestSelectionInvariantsExecute(Sender: TObject);
     procedure ActionTestUndoRedoExecute(Sender: TObject);
+    procedure ActionTestWordSelectionExecute(Sender: TObject);
     procedure ActionViewDarkThemeExecute(Sender: TObject);
     procedure ActionViewExecute(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -585,6 +587,14 @@ begin
   FFrameTextEditor.RunMacroTest(FMacroRecorder);
 
   UpdateMacroActions;
+end;
+
+procedure TMainForm.ActionTestWordSelectionExecute(Sender: TObject);
+begin
+  if not FFrameTextEditor.Visible then
+    ActionViewTextEditor.Execute;
+
+  FFrameTextEditor.RunWordSelectionTest;
 end;
 
 procedure TMainForm.ActionViewDarkThemeExecute(Sender: TObject);

@@ -644,6 +644,10 @@ object MainForm: TMainForm
               item
                 Action = ActionTestPastEndOfFile
                 Caption = 'Test &past end of file/line'
+              end
+              item
+                Action = ActionTestWordSelection
+                Caption = 'Test &word selection'
               end>
             Caption = '&Test'
           end>
@@ -772,6 +776,11 @@ object MainForm: TMainForm
       Category = 'Test'
       Caption = 'Test past end of file/line'
       OnExecute = ActionTestPastEndOfFileExecute
+    end
+    object ActionTestWordSelection: TAction
+      Category = 'Test'
+      Caption = 'Test word selection'
+      OnExecute = ActionTestWordSelectionExecute
     end
   end
   object PrintDialog: TPrintDialog
