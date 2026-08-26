@@ -100,6 +100,7 @@ object FrameTextEditor: TFrameTextEditor
       Caption = 'Stop'
       Enabled = False
       TabOrder = 2
+      OnClick = ButtonServerStopClick
     end
     object EditSettingsFile: TEdit
       Left = 0

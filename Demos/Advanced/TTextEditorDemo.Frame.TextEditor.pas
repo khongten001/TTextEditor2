@@ -29,6 +29,7 @@ type
     PanelTests: TPanel;
     TextEditor: TTextEditor;
     procedure ButtonServerStartClick(Sender: TObject);
+    procedure ButtonServerStopClick(Sender: TObject);
     procedure ButtonSettingsFileClick(Sender: TObject);
     procedure TextEditorCreateHighlighterStream(const ASender: TObject; const AName: string; var AStream: TStream);
   private
@@ -36,20 +37,12 @@ type
     FFileName: string;
     FTestMacroRecorder: TCustomEditorMacroRecorder;
 {$IFDEF TEXTEDITOR_LSP}
-    FHintWindow: THintWindow;
-    FHoverPosition: TTextEditorTextPosition;
-    FHoverTimer: TTimer;
-    FHoverWord: string;
     FLanguageServer: TTextEditorLanguageServer;
     function FindDelphiLSPConfiguration(const AFileName: string): string;
     function LanguageIdFromFileName(const AFileName: string): string;
-    procedure HideHoverHint;
-    procedure HoverTimerTimer(ASender: TObject);
     procedure LanguageServerGotoLocation(const ASender: TObject; const ALocation: TTextEditorLanguageServerLocation);
     procedure LanguageServerLog(const ASender: TObject; const AMessage: string);
-    procedure TextEditorCompletionProposalExecute(const ASender: TObject; var AParams: TCompletionProposalParams);
     procedure TextEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-    procedure TextEditorMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
 {$ENDIF}
     function RunCaretNavigationSeed(ASeed: Integer): string;
     function RunClipboardRoundTripSeed(ASeed: Integer): string;
@@ -112,8 +105,7 @@ begin
   if FileExists(LConfigurationFileName) then
   begin
     MemoServerLog.Lines.Add('Using ' + LConfigurationFileName);
-    FLanguageServer.Configuration := '{"settings":{"settingsFile":"' +
-      TTextEditorLanguageServer.FileNameToUri(LConfigurationFileName) + '"}}';
+    FLanguageServer.Configuration := '{"settings":{"settingsFile":"' + TTextEditorLanguageServer.FileNameToUri(LConfigurationFileName) + '"}}';
   end
   else
     MemoServerLog.Lines.Add('No settings file - a DelphiLSP server will only offer keywords.');
@@ -123,6 +115,16 @@ begin
 
   ButtonServerStart.Enabled := False;
   ButtonServerStop.Enabled := True;
+{$ENDIF}
+end;
+
+procedure TFrameTextEditor.ButtonServerStopClick(Sender: TObject);
+begin
+{$IFDEF TEXTEDITOR_LSP}
+  FLanguageServer.Stop;
+
+  ButtonServerStart.Enabled := True;
+  ButtonServerStop.Enabled := False;
 {$ENDIF}
 end;
 
@@ -137,14 +139,7 @@ begin
   FLanguageServer.OnGotoLocation := LanguageServerGotoLocation;
   FLanguageServer.OnLog := LanguageServerLog;
 
-  FHoverTimer := TTimer.Create(Self);
-  FHoverTimer.Enabled := False;
-  FHoverTimer.Interval := 600;
-  FHoverTimer.OnTimer := HoverTimerTimer;
-
-  TextEditor.OnCompletionProposalExecute := TextEditorCompletionProposalExecute;
   TextEditor.OnKeyDown := TextEditorKeyDown;
-  TextEditor.OnMouseMove := TextEditorMouseMove;
 end;
 
 destructor TFrameTextEditor.Destroy;
@@ -227,9 +222,6 @@ begin
   end;
 end;
 
-{ DelphiLSP learns the compiler options from a <Project>.delphilsp.json (exported by RAD Studio or written by hand) that the
-  client points to through workspace/didChangeConfiguration. Without it the server only offers keywords. The file is searched
-  from the document's folder upwards since units usually sit below the project. }
 function TFrameTextEditor.FindDelphiLSPConfiguration(const AFileName: string): string;
 var
   LDirectory, LParentDirectory: string;
@@ -255,14 +247,6 @@ begin
   Result := '';
 end;
 
-procedure TFrameTextEditor.ButtonServerStopClick(Sender: TObject);
-begin
-  FLanguageServer.Stop;
-
-  ButtonServerStart.Enabled := True;
-  ButtonServerStop.Enabled := False;
-end;
-
 procedure TFrameTextEditor.LanguageServerLog(const ASender: TObject; const AMessage: string);
 begin
   MemoServerLog.Lines.Add(AMessage);
@@ -281,90 +265,13 @@ begin
       ALocation.TextPosition.Line + 1, ALocation.TextPosition.Char]));
 end;
 
-procedure TFrameTextEditor.TextEditorCompletionProposalExecute(const ASender: TObject; var AParams: TCompletionProposalParams);
-begin
-  if FLanguageServer.Completion(AParams.Items) then
-  begin
-    AParams.Options.ParseItemsFromText := False;
-    AParams.Options.AddHighlighterKeywords := False;
-    AParams.Options.AddSnippets := False;
-    AParams.Options.ShowDescription := True;
-  end;
-end;
-
 procedure TFrameTextEditor.TextEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
-  HideHoverHint;
-
   if (Key = VK_F12) and (ssCtrl in Shift) then
   begin
     Key := 0;
     FLanguageServer.GotoDefinition;
   end;
-end;
-
-procedure TFrameTextEditor.HideHoverHint;
-begin
-  if Assigned(FHintWindow) then
-    FHintWindow.ReleaseHandle;
-end;
-
-procedure TFrameTextEditor.TextEditorMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
-var
-  LTextPosition: TTextEditorTextPosition;
-  LWord: string;
-begin
-  if not FLanguageServer.Initialized then
-    Exit;
-
-  if not TextEditor.GetTextPositionOfMouse(LTextPosition) then
-  begin
-    HideHoverHint;
-    Exit;
-  end;
-
-  LWord := TextEditor.WordAtTextPosition(LTextPosition);
-
-  if (LTextPosition.Line = FHoverPosition.Line) and (LWord = FHoverWord) and not LWord.IsEmpty then
-    Exit;
-
-  FHoverPosition := LTextPosition;
-  FHoverWord := LWord;
-
-  HideHoverHint;
-
-  FHoverTimer.Enabled := False;
-  FHoverTimer.Enabled := not LWord.IsEmpty;
-end;
-
-procedure TFrameTextEditor.HoverTimerTimer(ASender: TObject);
-var
-  LText: string;
-  LDiagnostic: TTextEditorLanguageServerDiagnostic;
-  LRect: TRect;
-  LPoint: TPoint;
-begin
-  FHoverTimer.Enabled := False;
-
-  if FLanguageServer.DiagnosticAt(FHoverPosition, LDiagnostic) then
-    LText := LDiagnostic.Message
-  else
-    LText := FLanguageServer.Hover(FHoverPosition);
-
-  if LText.IsEmpty then
-    Exit;
-
-  if not Assigned(FHintWindow) then
-  begin
-    FHintWindow := THintWindow.Create(Self);
-    FHintWindow.Font.Name := TextEditor.Fonts.Text.Name;
-  end;
-
-  LRect := FHintWindow.CalcHintRect(600, LText, nil);
-  LPoint := Mouse.CursorPos;
-
-  OffsetRect(LRect, LPoint.X, LPoint.Y + 20);
-  FHintWindow.ActivateHint(LRect, LText);
 end;
 
 {$ELSE}
@@ -476,8 +383,6 @@ end;
 
 procedure TFrameTextEditor.ExecuteTestCommand(const ACommand: Integer; const AViaCommandProcessor: Boolean = False);
 
-  { CommandProcessor is the full input path - it notifies hooked command handlers (the macro recorder records through
-    them), ExecuteCommand bypasses them }
   procedure Execute(const ACommand: Integer; const AChar: Char);
   begin
     if AViaCommandProcessor then

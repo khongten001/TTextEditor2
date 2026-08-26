@@ -980,6 +980,7 @@ type
     procedure SetOption(const AOption: TTextEditorOption; const AEnabled: Boolean);
     procedure SetSelectedTextEmpty(const AChangeString: string = '');
     procedure SetTextPositionAndSelection(const ATextPosition, ABlockBeginPosition, ABlockEndPosition: TTextEditorTextPosition);
+    procedure ShowCompletionProposal(const ATriggered: Boolean = True);
     procedure SizeOrFontChanged(const AFontChanged: Boolean = True);
     procedure Sort(const AOptions: TTextEditorSortOptions);
 {$IFDEF TEXT_EDITOR_SPELL_CHECK}
@@ -10507,6 +10508,11 @@ end;
 procedure TCustomTextEditor.SetWordWrap(const AValue: TTextEditorWordWrap);
 begin
   FWordWrap.Assign(AValue);
+end;
+
+procedure TCustomTextEditor.ShowCompletionProposal(const ATriggered: Boolean = True);
+begin
+  DoExecuteCompletionProposal(ATriggered);
 end;
 
 procedure TCustomTextEditor.SizeOrFontChanged(const AFontChanged: Boolean);

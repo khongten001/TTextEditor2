@@ -21,6 +21,7 @@ type
     FItemDescriptionWidth: Integer;
     FItemHeight: Integer;
     FItemIndexArray: array of Integer;
+    FItemKindWidth: Integer;
     FItemWidth: Integer;
     FItems: TTextEditorCompletionProposalItems;
     FLines: TTextEditorLines;
@@ -332,7 +333,7 @@ var
   LItemIndex: Integer;
   LItem: TTextEditorCompletionProposalItem;
   LText, LTemp, LDescription: string;
-  LPosition, LWidth: Integer;
+  LPosition, LWidth, LLeft: Integer;
 begin
   LTextEditor := if Assigned(Owner) then Owner as TCustomTextEditor else nil;
 
@@ -371,6 +372,11 @@ begin
       LItem := FItems[LItemIndex];
       LText := LItem.Keyword;
       LDescription := LItem.Description;
+      LLeft := FMargin + FItemKindWidth;
+
+      if not LItem.Kind.IsEmpty then
+        Canvas.TextOut(FMargin, LTop, LItem.Kind);
+
       LPosition := if FCaseSensitive then Pos(FCurrentString, LText) else Pos(AnsiUpperCase(FCurrentString), AnsiUpperCase(LText));
 
       if LPosition > 0 then
@@ -380,25 +386,30 @@ begin
         if LPosition > 1 then
         begin
           LTemp := Copy(LText, 1, LPosition - 1);
-          Canvas.TextOut(FMargin, LTop, LTemp);
+          Canvas.TextOut(LLeft, LTop, LTemp);
           Inc(LWidth, Canvas.TextWidth(LTemp));
         end;
 
         Canvas.Font.Style := Canvas.Font.Style + [fsUnderline];
         LTemp := Copy(LText, LPosition, FCurrentString.Length);
-        Canvas.TextOut(FMargin + LWidth, LTop, LTemp);
+        Canvas.TextOut(LLeft + LWidth, LTop, LTemp);
         Inc(LWidth, Canvas.TextWidth(LTemp));
         Canvas.Font.Style := Canvas.Font.Style - [fsUnderline];
         LTemp := Copy(LText, LPosition + FCurrentString.Length);
 
         if not LTemp.IsEmpty then
-          Canvas.TextOut(FMargin + LWidth, LTop, LTemp);
+          Canvas.TextOut(LLeft + LWidth, LTop, LTemp);
       end
       else
-        Canvas.TextOut(FMargin, LTop, LText);
+        Canvas.TextOut(LLeft, LTop, LText);
 
       if ShowDescription then
-        Canvas.TextOut(FMargin + FItemWidth, LTop, LDescription);
+      begin
+        if LItem.Kind.IsEmpty then
+          Canvas.TextOut(LLeft + FItemWidth, LTop, LDescription)
+        else
+          Canvas.TextOut(LLeft + Canvas.TextWidth(LText), LTop, LDescription);
+      end;
 
       Inc(LTop, FItemHeight);
     end;
@@ -548,67 +559,47 @@ var
 
   procedure CalculateFormPlacement;
   var
-    LMaxIndex: Integer;
-    LMaxDescriptionIndex: Integer;
-    LMaxLength: Integer;
-    LMaxDescriptionLength: Integer;
-    LLength: Integer;
-    LText, LDescription: string;
     LItem: TTextEditorCompletionProposalItem;
+    LText: string;
+    LFlowWidth: Integer;
     LWidth: Integer;
     LHeight: Integer;
   begin
     LPoint.X := APoint.X - TextWidth(FBitmapBuffer.Canvas, ACurrentString);
     LPoint.Y := APoint.Y;
 
-    LMaxIndex := 0;
-    LMaxDescriptionIndex := -1;
-    LMaxLength := 0;
-    LMaxDescriptionLength := 0;
+    FItemWidth := 0;
+    FItemDescriptionWidth := 0;
+    FItemKindWidth := 0;
+    LFlowWidth := 0;
 
     for var LIndex := 0 to FItems.Count - 1 do
     begin
       LItem := FItems[LIndex];
-      LText := LItem.Keyword;
-      LDescription := LItem.Description;
 
-      LLength := LText.Length;
-
-      if LLength > LMaxLength then
+      if LItem.Kind.IsEmpty then
       begin
-        LMaxLength := LLength;
-        LMaxIndex := LIndex;
-      end;
+        FItemWidth := Max(FItemWidth, TextWidth(FBitmapBuffer.Canvas, LItem.Keyword));
 
-      if ShowDescription then
+        if ShowDescription then
+          FItemDescriptionWidth := Max(FItemDescriptionWidth, TextWidth(FBitmapBuffer.Canvas, LItem.Description));
+      end
+      else
       begin
-        LLength := LDescription.Length;
+        FItemKindWidth := Max(FItemKindWidth, TextWidth(FBitmapBuffer.Canvas, LItem.Kind));
 
-        if LLength > LMaxDescriptionLength then
-        begin
-          LMaxDescriptionLength := LLength;
-          LMaxDescriptionIndex := LIndex;
-        end;
+        LText := if ShowDescription then LItem.Keyword + LItem.Description else LItem.Keyword;
+        LFlowWidth := Max(LFlowWidth, TextWidth(FBitmapBuffer.Canvas, LText));
       end;
     end;
 
-    LText := FItems[LMaxIndex].Keyword;
-
-    FItemWidth := TextWidth(FBitmapBuffer.Canvas, LText);
-
-    LWidth := FItemWidth + 2 * GetSystemMetrics(SM_CXVSCROLL);
-
-    FItemDescriptionWidth := 0;
-
-    if LMaxDescriptionIndex > -1 then
-    begin
-      LText := FItems[LMaxDescriptionIndex].Description;
-
+    if FItemDescriptionWidth > 0 then
       Inc(FItemWidth, TextWidth(FBitmapBuffer.Canvas, 'X'));
-      FItemDescriptionWidth := TextWidth(FBitmapBuffer.Canvas, LText);
-      Inc(LWidth, FItemDescriptionWidth);
-    end;
 
+    if FItemKindWidth > 0 then
+      Inc(FItemKindWidth, 2 * TextWidth(FBitmapBuffer.Canvas, 'X'));
+
+    LWidth := Max(FItemWidth + FItemDescriptionWidth, FItemKindWidth + LFlowWidth) + 2 * GetSystemMetrics(SM_CXVSCROLL);
     LWidth := Min(LWidth, Screen.WorkAreaRect.Width - 2 * FMargin);
 
     LHeight := FItemHeight * Min(FItems.Count, FCompletionProposal.VisibleLines) + 2;

@@ -141,6 +141,7 @@ type
 
   TTextEditorCompletionProposalItem = record
     Keyword: string;
+    Kind: string;
     Description: string;
     SnippetIndex: Integer;
   end;
