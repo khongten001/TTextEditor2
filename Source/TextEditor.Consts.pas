@@ -124,8 +124,8 @@ type
     GroupSeparator = #29;
     Linefeed = #10;
     NegativeAcknowledge = #21;
-    NextLine = #133;
-    NonBreakingSpace = #160;
+    NextLine = Char($0085);
+    NonBreakingSpace = Char($00A0);
     Null = #0;
     RecordSeparator = #30;
     ShiftIn = #15;
