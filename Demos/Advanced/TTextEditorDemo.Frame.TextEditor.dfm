@@ -44,9 +44,9 @@ object FrameTextEditor: TFrameTextEditor
   end
   object PanelLanguageServer: TPanel
     Left = 0
-    Top = 273
+    Top = 319
     Width = 640
-    Height = 166
+    Height = 120
     Align = alBottom
     BevelOuter = bvNone
     ParentColor = True
@@ -54,20 +54,13 @@ object FrameTextEditor: TFrameTextEditor
     TabOrder = 2
     DesignSize = (
       640
-      166)
+      120)
     object LabelServerCommandLine: TLabel
       Left = 2
       Top = 8
       Width = 86
       Height = 15
       Caption = 'Language server'
-    end
-    object LabelSettingsFile: TLabel
-      Left = 2
-      Top = 54
-      Width = 61
-      Height = 15
-      Caption = 'Settings file'
     end
     object EditServerCommandLine: TEdit
       Left = 0
@@ -76,10 +69,7 @@ object FrameTextEditor: TFrameTextEditor
       Height = 23
       Anchors = [akLeft, akTop, akRight]
       TabOrder = 0
-      Text = 'C:\Program Files (x86)\Embarcadero\Studio\37.0\bin\DelphiLSP.exe'
-      TextHint = 
-        'e.g.  clangd   |   pyright-langserver --stdio   |   typescript-l' +
-        'anguage-server --stdio'
+      TextHint = 'Detected automatically from the opened file - edit to override'
     end
     object ButtonServerStart: TButton
       Left = 456
@@ -102,36 +92,15 @@ object FrameTextEditor: TFrameTextEditor
       TabOrder = 2
       OnClick = ButtonServerStopClick
     end
-    object EditSettingsFile: TEdit
-      Left = 0
-      Top = 72
-      Width = 531
-      Height = 23
-      Anchors = [akLeft, akTop, akRight]
-      TabOrder = 3
-      TextHint = 
-        'Optional <Project>.delphilsp.json for DelphiLSP - found automati' +
-        'cally when next to the opened file or above it'
-    end
-    object ButtonSettingsFile: TButton
-      Left = 547
-      Top = 71
-      Width = 85
-      Height = 25
-      Anchors = [akTop, akRight]
-      Caption = 'Browse...'
-      TabOrder = 4
-      OnClick = ButtonSettingsFileClick
-    end
     object MemoServerLog: TMemo
       Left = 0
-      Top = 102
+      Top = 56
       Width = 640
-      Height = 58
+      Height = 64
       Anchors = [akLeft, akTop, akRight, akBottom]
       ReadOnly = True
       ScrollBars = ssVertical
-      TabOrder = 5
+      TabOrder = 3
     end
   end
 end

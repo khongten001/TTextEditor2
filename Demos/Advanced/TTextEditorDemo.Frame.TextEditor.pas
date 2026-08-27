@@ -11,18 +11,15 @@ uses
   Winapi.Windows, System.Classes, System.SysUtils, Vcl.Controls, Vcl.ExtCtrls, Vcl.Forms, Vcl.StdCtrls, TextEditor,
   TextEditor.MacroRecorder, TextEditor.Types
 {$IFDEF TEXTEDITOR_LSP}
-  , TextEditor.LanguageServer
+  , TextEditor.LanguageServer, TextEditor.LanguageServer.Manager
 {$ENDIF};
 
 type
   TFrameTextEditor = class(TFrame)
     ButtonServerStart: TButton;
     ButtonServerStop: TButton;
-    ButtonSettingsFile: TButton;
     EditServerCommandLine: TEdit;
-    EditSettingsFile: TEdit;
     LabelServerCommandLine: TLabel;
-    LabelSettingsFile: TLabel;
     LabelTestRun: TLabel;
     MemoServerLog: TMemo;
     PanelLanguageServer: TPanel;
@@ -30,19 +27,17 @@ type
     TextEditor: TTextEditor;
     procedure ButtonServerStartClick(Sender: TObject);
     procedure ButtonServerStopClick(Sender: TObject);
-    procedure ButtonSettingsFileClick(Sender: TObject);
     procedure TextEditorCreateHighlighterStream(const ASender: TObject; const AName: string; var AStream: TStream);
   private
     FClipboardDirty: Boolean;
     FFileName: string;
     FTestMacroRecorder: TCustomEditorMacroRecorder;
 {$IFDEF TEXTEDITOR_LSP}
-    FLanguageServer: TTextEditorLanguageServer;
-    function FindDelphiLSPConfiguration(const AFileName: string): string;
-    function LanguageIdFromFileName(const AFileName: string): string;
+    FLanguageServers: TTextEditorLanguageServers;
     procedure LanguageServerGotoLocation(const ASender: TObject; const ALocation: TTextEditorLanguageServerLocation);
     procedure LanguageServerLog(const ASender: TObject; const AMessage: string);
     procedure TextEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure UpdateServerButtons;
 {$ENDIF}
     function RunCaretNavigationSeed(ASeed: Integer): string;
     function RunClipboardRoundTripSeed(ASeed: Integer): string;
@@ -71,7 +66,8 @@ type
     procedure RunUndoRedoTest;
     procedure RunWordSelectionTest;
 {$IFDEF TEXTEDITOR_LSP}
-    property LanguageServer: TTextEditorLanguageServer read FLanguageServer;
+    function ActiveLanguageServer: TTextEditorLanguageServer;
+    property LanguageServers: TTextEditorLanguageServers read FLanguageServers;
 {$ENDIF}
   end;
 
@@ -92,39 +88,26 @@ begin
     Exit;
   end;
 
-  FLanguageServer.ServerCommandLine := EditServerCommandLine.Text;
-  FLanguageServer.RootPath := ExtractFileDir(FFileName);
-  FLanguageServer.ServerDirectory := FLanguageServer.RootPath;
-  FLanguageServer.Configuration := '';
+  var LDefinition := FLanguageServers.DefinitionForFileName(FFileName);
 
-  var LConfigurationFileName := Trim(EditSettingsFile.Text);
-
-  if LConfigurationFileName.IsEmpty then
-    LConfigurationFileName := FindDelphiLSPConfiguration(FFileName);
-
-  if FileExists(LConfigurationFileName) then
+  if not Assigned(LDefinition) then
   begin
-    MemoServerLog.Lines.Add('Using ' + LConfigurationFileName);
-    FLanguageServer.Configuration := '{"settings":{"settingsFile":"' + TTextEditorLanguageServer.FileNameToUri(LConfigurationFileName) + '"}}';
-  end
-  else
-    MemoServerLog.Lines.Add('No settings file - a DelphiLSP server will only offer keywords.');
+    MemoServerLog.Lines.Add('No language server registered for this file type.');
+    Exit;
+  end;
 
-  FLanguageServer.OpenDocument(FFileName, LanguageIdFromFileName(FFileName));
-  FLanguageServer.Start;
+  LDefinition.CommandLine := EditServerCommandLine.Text;
 
-  ButtonServerStart.Enabled := False;
-  ButtonServerStop.Enabled := True;
+  FLanguageServers.Attach(TextEditor, FFileName);
+  UpdateServerButtons;
 {$ENDIF}
 end;
 
 procedure TFrameTextEditor.ButtonServerStopClick(Sender: TObject);
 begin
 {$IFDEF TEXTEDITOR_LSP}
-  FLanguageServer.Stop;
-
-  ButtonServerStart.Enabled := True;
-  ButtonServerStop.Enabled := False;
+  FLanguageServers.Detach(TextEditor);
+  UpdateServerButtons;
 {$ENDIF}
 end;
 
@@ -134,128 +117,64 @@ constructor TFrameTextEditor.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
 
-  FLanguageServer := TTextEditorLanguageServer.Create(Self);
-  FLanguageServer.Editor := TextEditor;
-  FLanguageServer.OnGotoLocation := LanguageServerGotoLocation;
-  FLanguageServer.OnLog := LanguageServerLog;
+  FLanguageServers := TTextEditorLanguageServers.Create(Self);
+  FLanguageServers.OnGotoLocation := LanguageServerGotoLocation;
+  FLanguageServers.OnLog := LanguageServerLog;
+  FLanguageServers.DetectInstalledServers;
 
   TextEditor.OnKeyDown := TextEditorKeyDown;
 end;
 
 destructor TFrameTextEditor.Destroy;
 begin
-  FLanguageServer.Stop;
+  FLanguageServers.StopAll;
 
   inherited Destroy;
 end;
 
-function TFrameTextEditor.LanguageIdFromFileName(const AFileName: string): string;
-var
-  LExtension: string;
+function TFrameTextEditor.ActiveLanguageServer: TTextEditorLanguageServer;
 begin
-  LExtension := ExtractFileExt(AFileName).ToLower;
+  Result := FLanguageServers.InstanceForEditor(TextEditor);
+end;
 
-  if (LExtension = '.pas') or (LExtension = '.pp') or (LExtension = '.dpr') or (LExtension = '.lpr') or (LExtension = '.inc') then
-    Exit('pascal');
-
-  if (LExtension = '.c') or (LExtension = '.h') then
-    Exit('c');
-
-  if (LExtension = '.cpp') or (LExtension = '.cc') or (LExtension = '.cxx') or (LExtension = '.hpp') then
-    Exit('cpp');
-
-  if (LExtension = '.js') or (LExtension = '.mjs') then
-    Exit('javascript');
-
-  if LExtension = '.ts' then
-    Exit('typescript');
-
-  if LExtension = '.py' then
-    Exit('python');
-
-  if LExtension = '.rs' then
-    Exit('rust');
-
-  if LExtension = '.go' then
-    Exit('go');
-
-  if LExtension = '.cs' then
-    Exit('csharp');
-
-  if LExtension = '.java' then
-    Exit('java');
-
-  if LExtension = '.json' then
-    Exit('json');
-
-  if LExtension = '.md' then
-    Exit('markdown');
-
-  Result := 'plaintext';
+procedure TFrameTextEditor.UpdateServerButtons;
+begin
+  ButtonServerStart.Enabled := ActiveLanguageServer = nil;
+  ButtonServerStop.Enabled := not ButtonServerStart.Enabled;
 end;
 
 procedure TFrameTextEditor.OpenDocument(const AFileName: string);
+var
+  LDefinition: TTextEditorLanguageServerDefinition;
 begin
   FFileName := AFileName;
 
-  if Trim(EditSettingsFile.Text).IsEmpty then
-    EditSettingsFile.Text := FindDelphiLSPConfiguration(AFileName);
+  LDefinition := FLanguageServers.DefinitionForFileName(AFileName);
 
-  FLanguageServer.OpenDocument(AFileName, LanguageIdFromFileName(AFileName));
-end;
-
-procedure TFrameTextEditor.ButtonSettingsFileClick(Sender: TObject);
-var
-  LOpenDialog: TOpenDialog;
-begin
-  LOpenDialog := TOpenDialog.Create(Self);
-  try
-    LOpenDialog.Filter := 'DelphiLSP settings (*.delphilsp.json)|*.delphilsp.json|All files (*.*)|*.*';
-
-    if not FFileName.IsEmpty then
-      LOpenDialog.InitialDir := ExtractFileDir(FFileName);
-
-    if LOpenDialog.Execute then
-      EditSettingsFile.Text := LOpenDialog.FileName;
-  finally
-    LOpenDialog.Free;
-  end;
-end;
-
-function TFrameTextEditor.FindDelphiLSPConfiguration(const AFileName: string): string;
-var
-  LDirectory, LParentDirectory: string;
-  LFiles: TArray<string>;
-begin
-  LDirectory := ExtractFileDir(AFileName);
-
-  while not LDirectory.IsEmpty do
+  if Assigned(LDefinition) then
   begin
-    LFiles := TDirectory.GetFiles(LDirectory, '*.delphilsp.json');
-
-    if Length(LFiles) > 0 then
-      Exit(LFiles[0]);
-
-    LParentDirectory := ExtractFileDir(LDirectory);
-
-    if LParentDirectory = LDirectory then
-      Break;
-
-    LDirectory := LParentDirectory;
+    LabelServerCommandLine.Caption := 'Language server: ' + LDefinition.Name;
+    EditServerCommandLine.Text := LDefinition.CommandLine;
+  end
+  else
+  begin
+    LabelServerCommandLine.Caption := 'Language server: none registered for this file type';
+    EditServerCommandLine.Text := '';
   end;
 
-  Result := '';
+  if ActiveLanguageServer <> nil then
+  begin
+    FLanguageServers.Attach(TextEditor, AFileName);
+    UpdateServerButtons;
+  end;
 end;
 
 procedure TFrameTextEditor.LanguageServerLog(const ASender: TObject; const AMessage: string);
 begin
   MemoServerLog.Lines.Add(AMessage);
 
-  if AMessage.StartsWith('Server exited') then
-  begin
-    ButtonServerStart.Enabled := True;
-    ButtonServerStop.Enabled := False;
-  end;
+  if AMessage.Contains('Server exited') then
+    UpdateServerButtons;
 end;
 
 procedure TFrameTextEditor.LanguageServerGotoLocation(const ASender: TObject; const ALocation: TTextEditorLanguageServerLocation);
@@ -270,7 +189,11 @@ begin
   if (Key = VK_F12) and (ssCtrl in Shift) then
   begin
     Key := 0;
-    FLanguageServer.GotoDefinition;
+
+    var LInstance := ActiveLanguageServer;
+
+    if Assigned(LInstance) then
+      LInstance.GotoDefinition;
   end;
 end;
 
@@ -291,10 +214,6 @@ end;
 procedure TFrameTextEditor.OpenDocument(const AFileName: string);
 begin
   FFileName := AFileName;
-end;
-
-procedure TFrameTextEditor.ButtonSettingsFileClick(Sender: TObject);
-begin
 end;
 
 {$ENDIF}

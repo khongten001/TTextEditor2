@@ -38,10 +38,8 @@ type
     Signatures: TArray<TTextEditorLanguageServerSignature>;
   end;
 
-  TTextEditorLanguageServerDiagnosticsEvent = procedure(const ASender: TObject;
-    const ADiagnostics: TArray<TTextEditorLanguageServerDiagnostic>) of object;
-  TTextEditorLanguageServerLocationEvent = procedure(const ASender: TObject;
-    const ALocation: TTextEditorLanguageServerLocation) of object;
+  TTextEditorLanguageServerDiagnosticsEvent = procedure(const ASender: TObject; const ADiagnostics: TArray<TTextEditorLanguageServerDiagnostic>) of object;
+  TTextEditorLanguageServerLocationEvent = procedure(const ASender: TObject; const ALocation: TTextEditorLanguageServerLocation) of object;
   TTextEditorLanguageServerLogEvent = procedure(const ASender: TObject; const AMessage: string) of object;
 
   TTextEditorLanguageServer = class(TComponent)
@@ -86,6 +84,7 @@ type
     FSignatureHelpTimer: TTimer;
     FSyncTimeout: Integer;
     function CompletionItemKindText(const AKind: Integer; const ADetail: string): string;
+    function DecodeRawJsonString(const AText: string): string;
     function DocumentUri: string;
     function ExtractGotoLocation(const AGotoResult: TLSPGotoResult; out ALocation: TTextEditorLanguageServerLocation): Boolean;
     function GetActive: Boolean;
@@ -181,7 +180,7 @@ const
 implementation
 
 uses
-  System.Math, TextEditor.CompletionProposal, TextEditor.PaintHelper, XLSPFunctions;
+  System.Generics.Defaults, System.Math, TextEditor.CompletionProposal, TextEditor.PaintHelper, XLSPFunctions;
 
 const
   CHANGE_DEBOUNCE_MS = 300;
@@ -249,6 +248,24 @@ end;
 class function TTextEditorLanguageServer.FileNameToUri(const AFileName: string): string;
 begin
   Result := FilePathToUri(AFileName);
+end;
+
+function TTextEditorLanguageServer.DecodeRawJsonString(const AText: string): string;
+var
+  LValue: TJSONValue;
+begin
+  Result := AText;
+
+  if not AText.StartsWith('"') then
+    Exit;
+
+  LValue := TJSONObject.ParseJSONValue(AText);
+  try
+    if LValue is TJSONString then
+      Result := TJSONString(LValue).Value;
+  finally
+    LValue.Free;
+  end;
 end;
 
 function TTextEditorLanguageServer.DocumentUri: string;
@@ -418,14 +435,39 @@ begin
 end;
 
 function TTextEditorLanguageServer.QuotedCommandLine(const ACommandLine: string): string;
+
+  function WithExecutable(const AExecutable, AArguments: string): string;
+  begin
+    if SameText(ExtractFileExt(AExecutable), '.cmd') or SameText(ExtractFileExt(AExecutable), '.bat') then
+      Result := 'cmd.exe /c "' + AExecutable + '"' + AArguments
+    else
+    if AExecutable.Contains(' ') then
+      Result := '"' + AExecutable + '"' + AArguments
+    else
+      Result := AExecutable + AArguments;
+  end;
+
 var
   LIndex: Integer;
   LCandidate: string;
 begin
   Result := ACommandLine.Trim;
 
-  if Result.IsEmpty or Result.StartsWith('"') or (Result.IndexOf(' ') < 0) then
+  if Result.IsEmpty then
     Exit;
+
+  if Result.StartsWith('"') then
+  begin
+    LIndex := Result.IndexOf('"', 1);
+
+    if LIndex > 1 then
+      Result := WithExecutable(Result.Substring(1, LIndex - 1), Result.Substring(LIndex + 1));
+
+    Exit;
+  end;
+
+  if Result.IndexOf(' ') < 0 then
+    Exit(WithExecutable(Result, ''));
 
   LIndex := 0;
 
@@ -436,7 +478,7 @@ begin
     LCandidate := if LIndex < 0 then Result else Result.Substring(0, LIndex);
 
     if FileExists(LCandidate) then
-      Exit('"' + LCandidate + '"' + Result.Substring(LCandidate.Length));
+      Exit(WithExecutable(LCandidate, Result.Substring(LCandidate.Length)));
   end;
 end;
 
@@ -460,8 +502,8 @@ begin
 
   AValue.capabilities.AddSynchronizationSupport(True, False, False, False);
   AValue.capabilities.AddPublishDiagnosticsSupport(True, False, False, False);
-  AValue.capabilities.AddCompletionSupport(False, False, False, True, True, False, False, False, False, [], ['detail', 'documentation']);
-  AValue.capabilities.AddHoverSupport(False, True, True);
+  AValue.capabilities.AddCompletionSupport(False, False, False, True, True, False, False, False, False);
+  AValue.capabilities.AddHoverSupport(False, False, True);
   AValue.capabilities.AddSignatureHelpSupport(False, True, True, False, False);
   AValue.capabilities.AddDefinitionSupport(False);
 end;
@@ -631,7 +673,7 @@ begin
   begin
     FDiagnostics[LIndex].BeginPosition := PositionToEditor(ADiagnostics[LIndex].range.start);
     FDiagnostics[LIndex].EndPosition := PositionToEditor(ADiagnostics[LIndex].range.&end);
-    FDiagnostics[LIndex].Message := ADiagnostics[LIndex].&message;
+    FDiagnostics[LIndex].Message := DecodeRawJsonString(ADiagnostics[LIndex].&message);
     FDiagnostics[LIndex].Severity := ADiagnostics[LIndex].severity;
     FDiagnostics[LIndex].Source := ADiagnostics[LIndex].source;
   end;
@@ -880,10 +922,40 @@ begin
     Exit;
 
   try
-    for var LItem in LList.items do
+    var LIndexes: TArray<Integer>;
+    SetLength(LIndexes, Length(LList.items));
+
+    for var LIndex := 0 to High(LIndexes) do
+      LIndexes[LIndex] := LIndex;
+
+    TArray.Sort<Integer>(LIndexes, TComparer<Integer>.Construct(
+      function(const ALeft, ARight: Integer): Integer
+      var
+        LLeftKey, LRightKey: string;
+      begin
+        LLeftKey := if LList.items[ALeft].sortText.IsEmpty then LList.items[ALeft].&label else LList.items[ALeft].sortText;
+        LRightKey := if LList.items[ARight].sortText.IsEmpty then LList.items[ARight].&label else LList.items[ARight].sortText;
+
+        Result := CompareStr(LLeftKey, LRightKey);
+
+        if Result = 0 then
+          Result := ALeft - ARight;
+      end));
+
+    for var LIndex in LIndexes do
     begin
+      var LItem := LList.items[LIndex];
       var LProposalItem: TTextEditorCompletionProposalItem;
-      LProposalItem.Keyword := if LItem.insertText.IsEmpty then LItem.&label else LItem.insertText;
+      LProposalItem.Keyword := LItem.insertText;
+
+      if LProposalItem.Keyword.IsEmpty then
+      begin
+        LProposalItem.Keyword := LItem.&label.Trim;
+
+        if LProposalItem.Keyword.EndsWith('?') then
+          LProposalItem.Keyword := LProposalItem.Keyword.Substring(0, LProposalItem.Keyword.Length - 1);
+      end;
+
       LProposalItem.Kind := CompletionItemKindText(LItem.kind, LItem.detail);
       LProposalItem.Description := LItem.detail;
 
@@ -984,6 +1056,9 @@ begin
       end;
 
       LTrimmedLine := LTrimmedLine.Replace('**', '').Replace('`', '').Trim;
+
+      while LTrimmedLine.StartsWith('#') do
+        LTrimmedLine := LTrimmedLine.Substring(1).TrimLeft;
 
       if IsMarkdownRule(LTrimmedLine) then
         LTrimmedLine := '';
@@ -1349,6 +1424,14 @@ begin
     AParams.Options.AddHighlighterKeywords := False;
     AParams.Options.AddSnippets := False;
     AParams.Options.ShowDescription := True;
+    AParams.Options.SortByKeyword := False; { the server's sortText ranking is already applied }
+  end
+  else
+  if Initialized and FDocumentOpen then
+  begin
+    AParams.Options.ParseItemsFromText := False;
+    AParams.Options.AddHighlighterKeywords := False;
+    AParams.Options.AddSnippets := False;
   end;
 end;
 
