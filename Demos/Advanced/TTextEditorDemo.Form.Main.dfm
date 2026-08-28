@@ -22,6 +22,7 @@ object MainForm: TMainForm
     Align = alLeft
     BevelOuter = bvNone
     Caption = 'PanelSidebar'
+    FullRepaint = False
     ParentColor = True
     ShowCaption = False
     TabOrder = 0
