@@ -15,6 +15,8 @@ uses
 {$ENDIF};
 
 type
+  TOpenFileEvent = procedure(const AFileName: string) of object;
+
   TFrameTextEditor = class(TFrame)
     ButtonServerStart: TButton;
     ButtonServerStop: TButton;
@@ -31,6 +33,7 @@ type
   private
     FClipboardDirty: Boolean;
     FFileName: string;
+    FOnOpenFileRequest: TOpenFileEvent;
     FTestMacroRecorder: TCustomEditorMacroRecorder;
 {$IFDEF TEXTEDITOR_LSP}
     FLanguageServers: TTextEditorLanguageServers;
@@ -65,6 +68,7 @@ type
     procedure RunSelectionInvariantsTest;
     procedure RunUndoRedoTest;
     procedure RunWordSelectionTest;
+    property OnOpenFileRequest: TOpenFileEvent read FOnOpenFileRequest write FOnOpenFileRequest;
 {$IFDEF TEXTEDITOR_LSP}
     function ActiveLanguageServer: TTextEditorLanguageServer;
     property LanguageServers: TTextEditorLanguageServers read FLanguageServers;
@@ -179,9 +183,23 @@ end;
 
 procedure TFrameTextEditor.LanguageServerGotoLocation(const ASender: TObject; const ALocation: TTextEditorLanguageServerLocation);
 begin
-  if not SameText(ALocation.FileName, FFileName) then
+  if SameText(ALocation.FileName, FFileName) then
+    Exit;
+
+  if not Assigned(FOnOpenFileRequest) or not FileExists(ALocation.FileName) then
+  begin
     MemoServerLog.Lines.Add(Format('Definition is in %s (%d:%d) - open it to navigate.', [ALocation.FileName,
       ALocation.TextPosition.Line + 1, ALocation.TextPosition.Char]));
+    Exit;
+  end;
+
+  FOnOpenFileRequest(ALocation.FileName);
+
+  if SameText(FFileName, ALocation.FileName) then
+  begin
+    TextEditor.GoToLineAndSetPosition(ALocation.TextPosition.Line, ALocation.TextPosition.Char);
+    TextEditor.SetFocus;
+  end;
 end;
 
 procedure TFrameTextEditor.TextEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);

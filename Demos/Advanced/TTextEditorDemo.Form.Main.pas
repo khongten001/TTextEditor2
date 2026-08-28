@@ -111,6 +111,7 @@ type
     FObjectInspector: TMyObjectInspector;
     FSplitterRight: TSplitter;
     FWndProcGuardActive: Boolean;
+    function HighlighterForFileName(const AFileName: string): string;
     procedure AddFileNamesFromPathIntoPopupMenu(const APath: string; const APopupMenu: TPopupMenu);
     procedure AddFileNamesFromPathIntoSubPopupMenu(const APath: string; const APopupMenu: TPopupMenu);
     procedure CreateFrames;
@@ -120,6 +121,7 @@ type
     procedure InitializeHighlightersAndThemes;
     procedure InspectObject(const AObject: TComponent);
     procedure MacroRecorderStateChange(Sender: TObject);
+    procedure OpenFile(const AFileName: string);
     procedure SetSelectedHighlighter(const AValue: string);
     procedure SetSelectedTheme(const AValue: string);
     procedure UpdateCaption;
@@ -158,6 +160,121 @@ class function TDemoPaths.Themes: string;
 begin
   Result := ExtractFilePath(ParamStr(0)) + '..\..\Themes\';
 end;
+
+type
+  TFileTypeHighlighter = record
+    Extensions: string;
+    Highlighter: string;
+  end;
+
+const
+  cFileTypeHighlighters: array [0 .. 105] of TFileTypeHighlighter = (
+    (Extensions: '.abap'; Highlighter: 'ABAP'),
+    (Extensions: '.as'; Highlighter: 'ActionScript'),
+    (Extensions: '.ads;.adb'; Highlighter: 'Ada'),
+    (Extensions: '.cls'; Highlighter: 'Apex'),
+    (Extensions: '.ino'; Highlighter: 'Arduino'),
+    (Extensions: '.asp'; Highlighter: 'ASP'),
+    (Extensions: '.hc11;.asc'; Highlighter: 'Assembler - 68HC11'),
+    (Extensions: '.asm'; Highlighter: 'Assembler - 6502'),
+    (Extensions: '.ahk'; Highlighter: 'AutoHotkey'),
+    (Extensions: '.au3'; Highlighter: 'AutoIt v3'),
+    (Extensions: '.awk'; Highlighter: 'AWK'),
+    (Extensions: '.sh'; Highlighter: 'Bash'),
+    (Extensions: '.bat;.cmd'; Highlighter: 'Batch'),
+    (Extensions: '.cs'; Highlighter: 'C#'),
+    (Extensions: '.cpp;.hpp'; Highlighter: 'C++'),
+    (Extensions: '.c;.h'; Highlighter: 'C'),
+    (Extensions: '.carbon'; Highlighter: 'Carbon'),
+    (Extensions: '.chpl'; Highlighter: 'Chapel'),
+    (Extensions: '.clj;.cljs;.cljc;.edn'; Highlighter: 'Clojure'),
+    (Extensions: '.cmake'; Highlighter: 'CMake'),
+    (Extensions: '.cbl;.cob;.cobol'; Highlighter: 'Cobol'),
+    (Extensions: '.coffee'; Highlighter: 'CoffeeScript'),
+    (Extensions: '.cp'; Highlighter: 'Component Pascal'),
+    (Extensions: '.cf'; Highlighter: 'Command File'),
+    (Extensions: '.css'; Highlighter: 'CSS'),
+    (Extensions: '.d;.di'; Highlighter: 'D'),
+    (Extensions: '.dart'; Highlighter: 'Dart'),
+    (Extensions: '.dfm;.fmx'; Highlighter: 'Delphi Form Module'),
+    (Extensions: '.diff'; Highlighter: 'Diff'),
+    (Extensions: '.dws'; Highlighter: 'DWScript'),
+    (Extensions: '.e;.es'; Highlighter: 'Eiffel'),
+    (Extensions: '.exs'; Highlighter: 'Elixir'),
+    (Extensions: '.elm'; Highlighter: 'Elm'),
+    (Extensions: '.erl;.hrl'; Highlighter: 'Erlang'),
+    (Extensions: '.ex;.exw;.edb'; Highlighter: 'Euphoria'),
+    (Extensions: '.fs'; Highlighter: 'F#'),
+    (Extensions: '.pp'; Highlighter: 'Free Pascal'),
+    (Extensions: '.bi;.bas'; Highlighter: 'FreeBASIC'),
+    (Extensions: '.nc;.gcode'; Highlighter: 'G-code'),
+    (Extensions: '.gd'; Highlighter: 'GDScript'),
+    (Extensions: '.gitignore'; Highlighter: 'Git Ignore'),
+    (Extensions: '.gitattributes'; Highlighter: 'Git'),
+    (Extensions: '.glsl'; Highlighter: 'GLSL'),
+    (Extensions: '.go'; Highlighter: 'Go'),
+    (Extensions: '.gravity'; Highlighter: 'Gravity'),
+    (Extensions: '.groovy;.gvy;.gy;.gsh'; Highlighter: 'Groovy'),
+    (Extensions: '.hh;.hck;.hack'; Highlighter: 'Hack'),
+    (Extensions: '.html;.htm'; Highlighter: 'HTML with Scripts'),
+    (Extensions: '.ini;.lng'; Highlighter: 'INI'),
+    (Extensions: '.iss'; Highlighter: 'Inno Setup'),
+    (Extensions: '.java'; Highlighter: 'Java'),
+    (Extensions: '.js;.jsx;.mjs'; Highlighter: 'JavaScript'),
+    (Extensions: '.json'; Highlighter: 'JSON'),
+    (Extensions: '.json5'; Highlighter: 'JSON5'),
+    (Extensions: '.jl'; Highlighter: 'Julia'),
+    (Extensions: '.kt;.kts'; Highlighter: 'Kotlin'),
+    (Extensions: '.lat;.tex;.lex'; Highlighter: 'LaTex'),
+    (Extensions: '.lisp'; Highlighter: 'Lisp'),
+    (Extensions: '.log'; Highlighter: 'Log file'),
+    (Extensions: '.lua'; Highlighter: 'Lua'),
+    (Extensions: '.mk;.mak;.make'; Highlighter: 'Makefile'),
+    (Extensions: '.md'; Highlighter: 'Markdown'),
+    (Extensions: '.matlab'; Highlighter: 'MATLAB'),
+    (Extensions: '.eml;.mht'; Highlighter: 'MIME'),
+    (Extensions: '.mod;.m2;.def;.mi'; Highlighter: 'Modula-2'),
+    (Extensions: '.m3;.i3;.ig;.mg'; Highlighter: 'Modula-3'),
+    (Extensions: '.nim'; Highlighter: 'Nim'),
+    (Extensions: '.nsi'; Highlighter: 'NSIS'),
+    (Extensions: '.obs'; Highlighter: 'Objeck'),
+    (Extensions: '.pas;.dpr;.dpk;.lpr'; Highlighter: 'Object Pascal'),
+    (Extensions: '.mm'; Highlighter: 'Objective-C++'),
+    (Extensions: '.m'; Highlighter: 'Objective-C'),
+    (Extensions: '.ml'; Highlighter: 'OCaml'),
+    (Extensions: '.odin'; Highlighter: 'Odin'),
+    (Extensions: '.pl;.pm;.cgi'; Highlighter: 'Perl'),
+    (Extensions: '.php;.class;.inc'; Highlighter: 'PHP'),
+    (Extensions: '.ps1'; Highlighter: 'PowerShell'),
+    (Extensions: '.pb;.pbp'; Highlighter: 'PureBasic'),
+    (Extensions: '.py;.pyi'; Highlighter: 'Python'),
+    (Extensions: '.r;.rdata;.rds;.rda'; Highlighter: 'R'),
+    (Extensions: '.rkt'; Highlighter: 'Racket'),
+    (Extensions: '.red;.reds'; Highlighter: 'Red'),
+    (Extensions: '.reg'; Highlighter: 'Registry'),
+    (Extensions: '.rtf'; Highlighter: 'Rich Text Format'),
+    (Extensions: '.rb;.rbw'; Highlighter: 'Ruby'),
+    (Extensions: '.rs;.rc'; Highlighter: 'Rust'),
+    (Extensions: '.scala'; Highlighter: 'Scala'),
+    (Extensions: '.sol'; Highlighter: 'Solidity'),
+    (Extensions: '.sql'; Highlighter: 'SQL - Standard'),
+    (Extensions: '.st;.iecst'; Highlighter: 'Structured Text'),
+    (Extensions: '.swift'; Highlighter: 'Swift'),
+    (Extensions: '.tcl'; Highlighter: 'TclTk'),
+    (Extensions: '.txt'; Highlighter: 'Text'),
+    (Extensions: '.toml'; Highlighter: 'TOML'),
+    (Extensions: '.ts;.tsx'; Highlighter: 'TypeScript'),
+    (Extensions: '.uc'; Highlighter: 'UnrealScript'),
+    (Extensions: '.v'; Highlighter: 'V'),
+    (Extensions: '.vbs'; Highlighter: 'VBScript'),
+    (Extensions: '.vb'; Highlighter: 'Visual Basic'),
+    (Extensions: '.prg;.pjx'; Highlighter: 'Visual FoxPro'),
+    (Extensions: '.vrc;.vrcm'; Highlighter: 'VRCalc++'),
+    (Extensions: '.vtl'; Highlighter: 'VTL'),
+    (Extensions: '.xml;.xsd;.csl;.dtd;.cbproj;.dproj;.groupproj;.form;.opml;.rdf;.svg;.wxs'; Highlighter: 'XML'),
+    (Extensions: '.xsl;.xslt'; Highlighter: 'XSL'),
+    (Extensions: '.yml;.yaml'; Highlighter: 'YAML'),
+    (Extensions: '.zig'; Highlighter: 'Zig'));
 
 var
   FDarkStyleEnabled: Boolean;
@@ -309,6 +426,7 @@ begin
   FFrameTextEditor := TFrameTextEditor.Create(Self);
   FFrameTextEditor.TextEditor.OnCaretChanged := TextEditorCaretChanged;
   FFrameTextEditor.TextEditor.OnChange := TextEditorChange;
+  FFrameTextEditor.OnOpenFileRequest := OpenFile;
   FFrameTextEditor.Parent := PanelMain;
 
   { Text compare }
@@ -436,15 +554,7 @@ end;
 procedure TMainForm.ActionFileOpenExecute(Sender: TObject);
 begin
   if OpenDialog.Execute then
-  begin
-    FFileName := OpenDialog.FileName;
-
-    FFrameTextEditor.TextEditor.LoadFromFile(FFileName);
-    FFrameTextEditor.OpenDocument(FFileName);
-
-    UpdateCaption;
-    UpdateModifiedState;
-  end;
+    OpenFile(OpenDialog.FileName);
 end;
 
 procedure TMainForm.ActionFilePrintExecute(Sender: TObject);
@@ -531,6 +641,40 @@ begin
   FMacroRecorder.PlaybackMacro(FFrameTextEditor.TextEditor);
 
   FFrameTextEditor.TextEditor.SetFocus;
+end;
+
+function TMainForm.HighlighterForFileName(const AFileName: string): string;
+var
+  LExtension: string;
+begin
+  LExtension := ExtractFileExt(AFileName).ToLower;
+
+  if LExtension.IsEmpty then
+    Exit('');
+
+  for var LIndex := Low(cFileTypeHighlighters) to High(cFileTypeHighlighters) do
+  if (';' + cFileTypeHighlighters[LIndex].Extensions + ';').Contains(';' + LExtension + ';') then
+    Exit(cFileTypeHighlighters[LIndex].Highlighter);
+
+  Result := '';
+end;
+
+procedure TMainForm.OpenFile(const AFileName: string);
+var
+  LHighlighter: string;
+begin
+  FFileName := AFileName;
+
+  LHighlighter := HighlighterForFileName(AFileName);
+
+  if not LHighlighter.IsEmpty then
+    SetSelectedHighlighter(LHighlighter);
+
+  FFrameTextEditor.TextEditor.LoadFromFile(FFileName);
+  FFrameTextEditor.OpenDocument(FFileName);
+
+  UpdateCaption;
+  UpdateModifiedState;
 end;
 
 procedure TMainForm.MacroRecorderStateChange(Sender: TObject);

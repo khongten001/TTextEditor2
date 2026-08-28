@@ -25,6 +25,7 @@ type
     FItems: TTextEditorCompletionProposalItems;
     FLines: TTextEditorLines;
     FMargin: Integer;
+    FOnSelectedItemChange: TNotifyEvent;
     FOnValidate: TTextEditorValidateEvent;
     FScrollBarDragOffset: Integer;
     FScrollBarDragging: Boolean;
@@ -47,6 +48,7 @@ type
     procedure HandleDblClick(ASender: TObject);
     procedure HandleOnValidate(ASender: TObject; const AEndToken: Char);
     procedure MoveSelectedLine(const ALineCount: Integer);
+    procedure NotifySelectedItemChange;
     procedure PaintStyledScrollBar(const ACanvas: TCanvas);
     procedure RemoveKeyHandlers;
     procedure SetCurrentString(const AValue: string);
@@ -68,6 +70,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function GetCurrentInput: string;
+    function SelectedItemIndex: Integer;
     procedure Assign(ASource: TPersistent); override;
     procedure Execute(const ACurrentString: string; const APoint: TPoint; const AOptions: TCompletionProposalOptions);
     procedure MouseWheel(AShift: TShiftState; AWheelDelta: Integer);
@@ -75,6 +78,7 @@ type
     property CurrentString: string read FCurrentString write SetCurrentString;
     property Items: TTextEditorCompletionProposalItems read FItems write FItems;
     property Lines: TTextEditorLines read FLines write FLines;
+    property OnSelectedItemChange: TNotifyEvent read FOnSelectedItemChange write FOnSelectedItemChange;
     property OnValidate: TTextEditorValidateEvent read FOnValidate write FOnValidate;
     property ShowDescription: Boolean read FShowDescription write FShowDescription;
     property TopLine: Integer read FTopLine write SetTopLine;
@@ -426,6 +430,17 @@ begin
   Canvas.Draw(0, 0, FBitmapBuffer);
 end;
 
+function TTextEditorCompletionProposalPopupWindow.SelectedItemIndex: Integer;
+begin
+  Result := if (FSelectedLine >= 0) and (FSelectedLine < Length(FItemIndexArray)) then FItemIndexArray[FSelectedLine] else -1;
+end;
+
+procedure TTextEditorCompletionProposalPopupWindow.NotifySelectedItemChange;
+begin
+  if Assigned(FOnSelectedItemChange) then
+    FOnSelectedItemChange(Self);
+end;
+
 procedure TTextEditorCompletionProposalPopupWindow.MoveSelectedLine(const ALineCount: Integer);
 begin
   FSelectedLine := EnsureRange(FSelectedLine + ALineCount, 0, Max(Length(FItemIndexArray) - 1, 0));
@@ -435,6 +450,8 @@ begin
 
   if FSelectedLine < TopLine then
     TopLine := FSelectedLine;
+
+  NotifySelectedItemChange;
 end;
 
 procedure TTextEditorCompletionProposalPopupWindow.SetCurrentString(const AValue: string);
@@ -527,6 +544,8 @@ begin
     UpdateScrollBar;
     Invalidate;
   end;
+
+  NotifySelectedItemChange;
 end;
 
 procedure TTextEditorCompletionProposalPopupWindow.SetTopLine(const AValue: Integer);
@@ -1197,6 +1216,7 @@ begin
     inherited MouseDown(AButton, AShift, X, Y);
 
     Refresh;
+    NotifySelectedItemChange;
   end;
 end;
 

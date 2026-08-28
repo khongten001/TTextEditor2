@@ -6,7 +6,8 @@ interface
 
 uses
   Winapi.Windows, System.Classes, System.Generics.Collections, System.JSON, System.SysUtils, System.Types, System.UITypes, Vcl.Controls,
-  Vcl.ExtCtrls, TextEditor, TextEditor.Hover.PopupWindow, TextEditor.Marks, TextEditor.Types, XLSPClient, XLSPTypes;
+  Vcl.ExtCtrls, TextEditor, TextEditor.CompletionProposal.PopupWindow, TextEditor.Hover.PopupWindow, TextEditor.Marks, TextEditor.Types,
+  XLSPClient, XLSPTypes;
 
 type
   TTextEditorLanguageServerDiagnostic = record
@@ -46,6 +47,9 @@ type
   strict private
     FChangeTimer: TTimer;
     FClient: TLSPClient;
+    FCompletionItems: TArray<TLSPCompletionItem>;
+    FCompletionItemsOffset: Integer;
+    FCompletionItemsResolved: TArray<Boolean>;
     FCompletionTriggerEnabled: Boolean;
     FCompletionTriggerTimer: TTimer;
     FConfiguration: string;
@@ -74,6 +78,7 @@ type
     FOnLog: TTextEditorLanguageServerLogEvent;
     FPreviousOnCompletionProposalExecute: TOnCompletionProposalExecute;
     FPreviousOnCustomTokenAttribute: TTextEditorCustomTokenAttributeEvent;
+    FResolveTimer: TTimer;
     FRootPath: string;
     FServerCommandLine: string;
     FServerDirectory: string;
@@ -104,6 +109,7 @@ type
     procedure ClientInitialized(ASender: TObject; var AValue: TLSPInitializeResult);
     procedure ClientLogMessage(ASender: TObject; const AType: TLSPMessageType; const AMessage: string);
     procedure ClientPublishDiagnostics(ASender: TObject; const AUri: string; const AVersion: Cardinal; const ADiagnostics: TArray<TLSPDiagnostic>);
+    procedure CompletionSelectedItemChange(ASender: TObject);
     procedure CompletionTriggerTimerTimer(ASender: TObject);
     procedure EditorCompletionProposalExecute(const ASender: TObject; var AParams: TCompletionProposalParams);
     procedure EditorCustomTokenAttribute(const ASender: TObject; const AText: string; const ALine: Integer; const AChar: Integer;
@@ -121,6 +127,7 @@ type
     procedure HoverLinkClick(ASender: TObject);
     procedure HoverTimerTimer(ASender: TObject);
     procedure Log(const AMessage: string);
+    procedure ResolveTimerTimer(ASender: TObject);
     procedure SendDidChange;
     procedure SetEditor(const AValue: TCustomTextEditor);
     procedure SetHoverDelay(const AValue: Integer);
@@ -186,6 +193,7 @@ const
   CHANGE_DEBOUNCE_MS = 300;
   HOVER_CLOSE_POLL_MS = 100;
   MAX_COMPLETION_DESCRIPTION_LENGTH = 100;
+  RESOLVE_DELAY_MS = 150;
   SIGNATURE_HELP_DELAY_MS = 50;
 
 constructor TTextEditorLanguageServer.Create(AOwner: TComponent);
@@ -231,6 +239,11 @@ begin
   FCompletionTriggerTimer := TTimer.Create(Self);
   FCompletionTriggerTimer.Enabled := False;
   FCompletionTriggerTimer.OnTimer := CompletionTriggerTimerTimer;
+
+  FResolveTimer := TTimer.Create(Self);
+  FResolveTimer.Enabled := False;
+  FResolveTimer.Interval := RESOLVE_DELAY_MS;
+  FResolveTimer.OnTimer := ResolveTimerTimer;
 end;
 
 destructor TTextEditorLanguageServer.Destroy;
@@ -425,6 +438,7 @@ begin
   FServerRunning := False;
   FChangeTimer.Enabled := False;
   FCompletionTriggerTimer.Enabled := False;
+  FResolveTimer.Enabled := False;
 
   if FDocumentOpen then
     CloseDocument;
@@ -502,7 +516,7 @@ begin
 
   AValue.capabilities.AddSynchronizationSupport(True, False, False, False);
   AValue.capabilities.AddPublishDiagnosticsSupport(True, False, False, False);
-  AValue.capabilities.AddCompletionSupport(False, False, False, True, True, False, False, False, False);
+  AValue.capabilities.AddCompletionSupport(False, False, False, True, True, False, False, False, False, [], ['detail', 'documentation']);
   AValue.capabilities.AddHoverSupport(False, False, True);
   AValue.capabilities.AddSignatureHelpSupport(False, True, True, False, False);
   AValue.capabilities.AddDefinitionSupport(False);
@@ -591,6 +605,7 @@ begin
 
   FChangeTimer.Enabled := False;
   FCompletionTriggerTimer.Enabled := False;
+  FResolveTimer.Enabled := False;
 
   if FDocumentOpen and Initialized then
   begin
@@ -942,6 +957,14 @@ begin
           Result := ALeft - ARight;
       end));
 
+    FCompletionItemsOffset := AItems.Count;
+    FCompletionItems := nil;
+    FCompletionItemsResolved := nil;
+    SetLength(FCompletionItems, Length(LList.items));
+    SetLength(FCompletionItemsResolved, Length(LList.items));
+
+    var LItemCount := 0;
+
     for var LIndex in LIndexes do
     begin
       var LItem := LList.items[LIndex];
@@ -957,11 +980,14 @@ begin
       end;
 
       LProposalItem.Kind := CompletionItemKindText(LItem.kind, LItem.detail);
-      LProposalItem.Description := LItem.detail;
+      LProposalItem.Description := LItem.detail.Replace(#13, '').Replace(#10, ' ');
 
       if Length(LProposalItem.Description) > MAX_COMPLETION_DESCRIPTION_LENGTH then
         LProposalItem.Description := Copy(LProposalItem.Description, 1, MAX_COMPLETION_DESCRIPTION_LENGTH - 3) + '...';
       LProposalItem.SnippetIndex := -1;
+
+      FCompletionItems[LItemCount] := LItem;
+      Inc(LItemCount);
 
       AItems.Add(LProposalItem);
     end;
@@ -1234,23 +1260,30 @@ begin
       var
         LResult: TLSPGotoResult;
         LLocation: TTextEditorLanguageServerLocation;
+        LFound: Boolean;
       begin
         if not Assigned(AJson.Values['result']) or AJson.Values['result'].Null then
           Exit;
 
         LResult := JsonGotoResultToObject(AJson.Values['result']);
         try
-          if not ExtractGotoLocation(LResult, LLocation) then
-            Exit;
-
-          if SameText(LLocation.FileName, FFileName) and Assigned(FEditor) then
-            FEditor.TextPosition := LLocation.TextPosition;
-
-          if Assigned(FOnGotoLocation) then
-            FOnGotoLocation(Self, LLocation);
+          LFound := ExtractGotoLocation(LResult, LLocation);
         finally
           LResult.Free;
         end;
+
+        if not LFound then
+          Exit;
+
+        TThread.Queue(nil,
+          procedure
+          begin
+            if SameText(LLocation.FileName, FFileName) and Assigned(FEditor) then
+              FEditor.GoToLineAndSetPosition(LLocation.TextPosition.Line, LLocation.TextPosition.Char);
+
+            if Assigned(FOnGotoLocation) then
+              FOnGotoLocation(Self, LLocation);
+          end);
       end);
   finally
     LParams.Free;
@@ -1405,6 +1438,106 @@ begin
   Result := False;
 end;
 
+procedure TTextEditorLanguageServer.CompletionSelectedItemChange(ASender: TObject); //FI:O804 Method parameter is declared but never used
+begin
+  FResolveTimer.Enabled := False;
+  FResolveTimer.Enabled := True;
+end;
+
+procedure TTextEditorLanguageServer.ResolveTimerTimer(ASender: TObject); //FI:O804 Method parameter is declared but never used
+var
+  LPopupWindow: TTextEditorCompletionProposalPopupWindow;
+  LItemsIndex, LArrayIndex: Integer;
+  LProposalItem: TTextEditorCompletionProposalItem;
+  LParams: TLSPCompletionItemResolveParams;
+  LResolvedItem: TLSPCompletionItem;
+  LResolved: Boolean;
+  LDescription, LLine: string;
+begin
+  FResolveTimer.Enabled := False;
+
+  if not Initialized or not Assigned(FEditor) then
+    Exit;
+
+  LPopupWindow := FEditor.CompletionProposalPopupWindow;
+
+  if not Assigned(LPopupWindow) or not LPopupWindow.Visible then
+    Exit;
+
+  LItemsIndex := LPopupWindow.SelectedItemIndex;
+  LArrayIndex := LItemsIndex - FCompletionItemsOffset;
+
+  if (LItemsIndex < 0) or (LItemsIndex >= LPopupWindow.Items.Count) or (LArrayIndex < 0) or
+    (LArrayIndex >= Length(FCompletionItems)) then
+    Exit;
+
+  if FCompletionItemsResolved[LArrayIndex] then
+    Exit;
+
+  FCompletionItemsResolved[LArrayIndex] := True;
+
+  if not LPopupWindow.Items[LItemsIndex].Description.IsEmpty then
+    Exit;
+
+  LResolved := False;
+
+  LParams := TLSPCompletionItemResolveParams.Create;
+  try
+    LParams.completionItem := FCompletionItems[LArrayIndex];
+
+    if not FClient.SendSyncRequest(lspCompletionItemResolve, LParams,
+      procedure(AJson: TJSONObject)
+      var
+        LResult: TLSPCompetionItemResolveResult;
+      begin
+        if Assigned(AJson.Values['result']) and not AJson.Values['result'].Null then
+        begin
+          LResult := JsonCompletionItemResolveResultToObject(AJson.Values['result']);
+          try
+            LResolvedItem := LResult.completionItem;
+            LResolved := True;
+          finally
+            LResult.Free;
+          end;
+        end;
+      end, FSyncTimeout) then
+      Exit;
+  finally
+    LParams.Free;
+  end;
+
+  if not LResolved then
+    Exit;
+
+  LDescription := LResolvedItem.detail.Replace(#13, '').Replace(#10, ' ');
+
+  if LDescription.IsEmpty then
+  for LLine in LResolvedItem.documentationMarkup.value.Replace(#13, '').Split([#10]) do
+  begin
+    if not LLine.Trim.IsEmpty then
+    begin
+      LDescription := LLine.Trim;
+      Break;
+    end;
+  end;
+
+  if LDescription.IsEmpty then
+    Exit;
+
+  if Length(LDescription) > MAX_COMPLETION_DESCRIPTION_LENGTH then
+    LDescription := Copy(LDescription, 1, MAX_COMPLETION_DESCRIPTION_LENGTH - 3) + '...';
+
+  LPopupWindow := FEditor.CompletionProposalPopupWindow;
+
+  if not Assigned(LPopupWindow) or (LItemsIndex >= LPopupWindow.Items.Count) then
+    Exit;
+
+  LProposalItem := LPopupWindow.Items[LItemsIndex];
+  LProposalItem.Description := LDescription;
+  LPopupWindow.Items[LItemsIndex] := LProposalItem;
+  LPopupWindow.Invalidate;
+end;
+
 procedure TTextEditorLanguageServer.CompletionTriggerTimerTimer(ASender: TObject);
 begin
   FCompletionTriggerTimer.Enabled := False;
@@ -1425,6 +1558,13 @@ begin
     AParams.Options.AddSnippets := False;
     AParams.Options.ShowDescription := True;
     AParams.Options.SortByKeyword := False; { the server's sortText ranking is already applied }
+
+    if FClient.IsRequestSupported(lspCompletionItemResolve) and Assigned(FEditor) and
+      Assigned(FEditor.CompletionProposalPopupWindow) then
+    begin
+      FEditor.CompletionProposalPopupWindow.OnSelectedItemChange := CompletionSelectedItemChange;
+      CompletionSelectedItemChange(FEditor.CompletionProposalPopupWindow);
+    end;
   end
   else
   if Initialized and FDocumentOpen then

@@ -1024,6 +1024,7 @@ type
     property CharWidth: Integer read GetCharWidth;
     property CodeFolding: TTextEditorCodeFolding read FCodeFolding write SetCodeFolding;
     property Colors: TTextEditorColors read FColors write FColors;
+    property CompletionProposalPopupWindow: TTextEditorCompletionProposalPopupWindow read FCompletionProposalPopupWindow;
     property CompletionProposal: TTextEditorCompletionProposal read FCompletionProposal write FCompletionProposal;
     property Cursor default TTextEditorDefaults.Cursor;
     property EditorMode: TTextEditorMode read FEditorMode write SetEditorMode default emNormal;
