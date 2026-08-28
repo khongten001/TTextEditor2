@@ -1,4 +1,4 @@
-﻿unit TextEditor.Types;
+unit TextEditor.Types;
 
 {$I TextEditor.Defines.inc}
 
@@ -134,7 +134,7 @@ type
   end;
 
   TTextEditorCompletionProposalOption = (cpoAddHighlighterKeywords, cpoAutoConstraints, cpoAutoInvoke, cpoCaseSensitive,
-    cpoFiltered, cpoParseItemsFromText, cpoShowBorder, cpoShowShadow);
+    cpoFiltered, cpoParseItemsFromText, cpoResizable, cpoShowBorder, cpoShowShadow);
   TTextEditorCompletionProposalOptions = set of TTextEditorCompletionProposalOption;
 
   TTextEditorCompletionProposalKeywordCase = (kcUpperCase, kcLowerCase, kcSentenceCase);
@@ -391,7 +391,7 @@ type
     CodeFolding = [cfoAutoWidth, cfoHighlightMatchingPair, cfoShowTreeLine, cfoExpandByHintClick];
     CodeFoldingGuideLines = [cfgHideOverText];
     CodeFoldingHint = [hioShowBorder, hioShowMark];
-    CompletionProposal = [cpoAutoConstraints, cpoAddHighlighterKeywords, cpoFiltered, cpoParseItemsFromText, cpoShowBorder, cpoShowShadow];
+    CompletionProposal = [cpoAutoConstraints, cpoAddHighlighterKeywords, cpoFiltered, cpoParseItemsFromText, cpoResizable, cpoShowBorder, cpoShowShadow];
     HighlightLine = [hlIgnoreCase, hlDeleteOnHighlighterLoad];
     MultiEdit = [meoShowActiveLine, meoShowGhost];
   end;

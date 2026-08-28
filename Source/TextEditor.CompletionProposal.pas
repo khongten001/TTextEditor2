@@ -43,7 +43,7 @@ type
     property Snippets: TTextEditorCompletionProposalSnippets read FSnippets write SetSnippets;
     property Trigger: TTextEditorCompletionProposalTrigger read FTrigger write FTrigger;
     property VisibleLines: Integer read FVisibleLines write FVisibleLines default 8;
-    property Width: Integer read FWidth write FWidth default 260;
+    property Width: Integer read FWidth write FWidth default 0; 
   end;
 
 implementation
@@ -65,7 +65,7 @@ begin
   FVisibleLines := 8;
   FMinHeight := 0;
   FMinWidth := 0;
-  FWidth := 260;
+  FWidth := 0;
   FKeywordCase := kcLowerCase;
 end;
 

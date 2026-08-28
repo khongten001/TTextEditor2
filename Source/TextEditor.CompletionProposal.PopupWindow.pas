@@ -1,4 +1,4 @@
-﻿unit TextEditor.CompletionProposal.PopupWindow;
+unit TextEditor.CompletionProposal.PopupWindow;
 
 interface
 
@@ -17,7 +17,6 @@ type
     FCompletionProposal: TTextEditorCompletionProposal;
     FCurrentString: string;
     FFiltered: Boolean;
-    FFormWidth: Integer;
     FItemDescriptionWidth: Integer;
     FItemHeight: Integer;
     FItemIndexArray: array of Integer;
@@ -32,6 +31,7 @@ type
     FSelectedLine: Integer;
     FShowDescription: Boolean;
     FTopLine: Integer;
+    FUserSizing: Boolean;
     FValueSet: Boolean;
     function GetItemHeight: Integer;
     function ScrollBarArrowSize: Integer;
@@ -52,12 +52,18 @@ type
     procedure SetCurrentString(const AValue: string);
     procedure SetTopLine(const AValue: Integer);
     procedure UpdateScrollBar;
+    procedure WMEnterSizeMove(var AMessage: TMessage); message WM_ENTERSIZEMOVE;
+    procedure WMExitSizeMove(var AMessage: TMessage); message WM_EXITSIZEMOVE;
+    procedure WMGetMinMaxInfo(var AMessage: TWMGetMinMaxInfo); message WM_GETMINMAXINFO;
+    procedure WMNCHitTest(var AMessage: TWMNCHitTest); message WM_NCHITTEST;
+    procedure WMSizing(var AMessage: TMessage); message WM_SIZING;
     procedure WMVScroll(var AMessage: TWMScroll); message WM_VSCROLL;
   protected
     procedure Paint; override;
     procedure MouseDown(AButton: TMouseButton; AShift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(AShift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(AButton: TMouseButton; AShift: TShiftState; X, Y: Integer); override;
+    procedure Resize; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -124,7 +130,6 @@ begin
     begin
       Self.FCaseSensitive := cpoCaseSensitive in Options;
       Self.FFiltered := cpoFiltered in Options;
-      Self.FFormWidth := Width;
       Self.Font.Assign(Font);
       Self.Constraints.Assign(Constraints);
     end
@@ -500,7 +505,7 @@ begin
     LCount := RecalcList(AValue.IsEmpty);
     LHeight := FItemHeight * Min(LCount, FCompletionProposal.VisibleLines) + 2;
 
-    if cpoAutoConstraints in FCompletionProposal.Options then
+    if (cpoAutoConstraints in FCompletionProposal.Options) and not (cpoResizable in FCompletionProposal.Options) then
       Constraints.MinHeight := LHeight;
 
     Height := LHeight;
@@ -600,6 +605,10 @@ var
       Inc(FItemKindWidth, 2 * TextWidth(FBitmapBuffer.Canvas, 'X'));
 
     LWidth := Max(FItemWidth + FItemDescriptionWidth, FItemKindWidth + LFlowWidth) + 2 * GetSystemMetrics(SM_CXVSCROLL);
+
+    if FCompletionProposal.Width > 0 then
+      LWidth := FCompletionProposal.Width;
+
     LWidth := Min(LWidth, Screen.WorkAreaRect.Width - 2 * FMargin);
 
     LHeight := FItemHeight * Min(FItems.Count, FCompletionProposal.VisibleLines) + 2;
@@ -626,7 +635,7 @@ var
 
   procedure SetAutoConstraints;
   begin
-    if cpoAutoConstraints in FCompletionProposal.Options then
+    if (cpoAutoConstraints in FCompletionProposal.Options) and not (cpoResizable in FCompletionProposal.Options) then
     begin
       Constraints.MinHeight := Height;
       Constraints.MinWidth := Width;
@@ -1005,6 +1014,150 @@ begin
       TopLine := AMessage.Pos;
   end;
 
+  Invalidate;
+end;
+
+procedure TTextEditorCompletionProposalPopupWindow.WMNCHitTest(var AMessage: TWMNCHitTest);
+var
+  LPoint: TPoint;
+  LGripSize: Integer;
+  LOnLeftEdge, LOnTopEdge, LOnRightEdge, LOnBottomEdge: Boolean;
+begin
+  inherited;
+
+  if (AMessage.Result <> HTCLIENT) and (AMessage.Result <> HTBORDER) and (AMessage.Result <> HTVSCROLL) then
+    Exit;
+
+  if not Assigned(FCompletionProposal) or not (cpoResizable in FCompletionProposal.Options) then
+    Exit;
+
+  LPoint := ScreenToClient(Point(AMessage.XPos, AMessage.YPos));
+  LGripSize := GetSystemMetrics(SM_CXSIZEFRAME);
+
+  LOnLeftEdge := LPoint.X < LGripSize;
+  LOnTopEdge := LPoint.Y < LGripSize;
+  LOnRightEdge := LPoint.X >= ClientWidth - LGripSize;
+  LOnBottomEdge := LPoint.Y >= ClientHeight - LGripSize;
+
+  if AMessage.Result = HTVSCROLL then
+  begin
+    if LOnBottomEdge then
+      AMessage.Result := HTBOTTOMRIGHT
+    else
+    if LOnTopEdge then
+      AMessage.Result := HTTOPRIGHT;
+
+    Exit;
+  end;
+
+  if LOnTopEdge and LOnLeftEdge then
+    AMessage.Result := HTTOPLEFT
+  else
+  if LOnTopEdge and LOnRightEdge then
+    AMessage.Result := HTTOPRIGHT
+  else
+  if LOnBottomEdge and LOnLeftEdge then
+    AMessage.Result := HTBOTTOMLEFT
+  else
+  if LOnBottomEdge and LOnRightEdge then
+    AMessage.Result := HTBOTTOMRIGHT
+  else
+  if LOnLeftEdge then
+    AMessage.Result := HTLEFT
+  else
+  if LOnTopEdge then
+    AMessage.Result := HTTOP
+  else
+  if LOnRightEdge then
+    AMessage.Result := HTRIGHT
+  else
+  if LOnBottomEdge then
+    AMessage.Result := HTBOTTOM;
+end;
+
+procedure TTextEditorCompletionProposalPopupWindow.WMGetMinMaxInfo(var AMessage: TWMGetMinMaxInfo);
+begin
+  inherited;
+
+  if not Assigned(FCompletionProposal) then
+    Exit;
+
+  with AMessage.MinMaxInfo^ do
+  begin
+    ptMinTrackSize.X := Max(FCompletionProposal.MinWidth, 4 * GetSystemMetrics(SM_CXVSCROLL));
+    ptMinTrackSize.Y := Max(FCompletionProposal.MinHeight, FItemHeight + 2);
+  end;
+end;
+
+procedure TTextEditorCompletionProposalPopupWindow.WMEnterSizeMove(var AMessage: TMessage);
+begin
+  inherited;
+
+  FUserSizing := True;
+end;
+
+procedure TTextEditorCompletionProposalPopupWindow.WMExitSizeMove(var AMessage: TMessage);
+var
+  LTextEditor: TCustomTextEditor;
+begin
+  inherited;
+
+  FUserSizing := False;
+
+  if not Assigned(FCompletionProposal) or (FItemHeight <= 0) then
+    Exit;
+
+  Height := FItemHeight * Min(Length(FItemIndexArray), FCompletionProposal.VisibleLines) + 2;
+  FCompletionProposal.Width := Width;
+
+  LTextEditor := if Assigned(Owner) then Owner as TCustomTextEditor else nil;
+
+  if Assigned(LTextEditor) and LTextEditor.HandleAllocated and (GetFocus = Handle) then
+    Winapi.Windows.SetFocus(LTextEditor.Handle);
+end;
+
+procedure TTextEditorCompletionProposalPopupWindow.WMSizing(var AMessage: TMessage);
+var
+  LRect: PRect;
+  LBorderHeight, LRows: Integer;
+begin
+  inherited;
+
+  if FItemHeight <= 0 then
+    Exit;
+
+  LRect := PRect(AMessage.LParam);
+  LBorderHeight := Height - ClientHeight;
+  LRows := Max(1, (LRect.Height - LBorderHeight + FItemHeight div 2) div FItemHeight);
+
+  case AMessage.WParam of
+    WMSZ_TOP, WMSZ_TOPLEFT, WMSZ_TOPRIGHT:
+      LRect.Top := LRect.Bottom - (LRows * FItemHeight + LBorderHeight);
+  else
+    LRect.Bottom := LRect.Top + LRows * FItemHeight + LBorderHeight;
+  end;
+
+  AMessage.Result := 1;
+end;
+
+procedure TTextEditorCompletionProposalPopupWindow.Resize;
+var
+  LVisibleLines: Integer;
+begin
+  inherited Resize;
+
+  if not FUserSizing or not Assigned(FCompletionProposal) or (FItemHeight <= 0) then
+    Exit;
+
+  LVisibleLines := Max(1, ClientHeight div FItemHeight);
+
+  if LVisibleLines <> FCompletionProposal.VisibleLines then
+  begin
+    FCompletionProposal.VisibleLines := LVisibleLines;
+    TopLine := Min(TopLine, ScrollBarMaxTopLine);
+  end;
+
+  UpdateScrollBar;
   Invalidate;
 end;
 

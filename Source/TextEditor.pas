@@ -24304,7 +24304,11 @@ begin
     WM_IME_NOTIFY:
       if Assigned(FCompletionProposalPopupWindow) then
         SetCompletionProposalPopupWindowLocation;
-    WM_KILLFOCUS, WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_VSCROLL, WM_HSCROLL:
+    WM_KILLFOCUS:
+      if not Assigned(FCompletionProposalPopupWindow) or not FCompletionProposalPopupWindow.HandleAllocated or
+        (HWND(AMessage.WParam) <> FCompletionProposalPopupWindow.Handle) then
+        FreeCompletionProposalPopupWindow;
+    WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_VSCROLL, WM_HSCROLL:
       FreeCompletionProposalPopupWindow;
     WM_NCPAINT:
       if not (csOverrideStylePaint in ControlStyle) then
