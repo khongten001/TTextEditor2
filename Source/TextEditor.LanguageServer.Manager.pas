@@ -7,6 +7,7 @@ uses
 
 type
   TTextEditorLanguageServerRootPathKind = (rpDocumentFolder, rpFixedFolder, rpMarkerFile);
+  TTextEditorLanguageServerSettingsFallback = (sfNone, sfDelphiLsp);
 
   TTextEditorLanguageServerDefinition = class(TCollectionItem)
   strict private
@@ -19,6 +20,7 @@ type
     FName: string;
     FRootPath: string;
     FRootPathKind: TTextEditorLanguageServerRootPathKind;
+    FSettingsFallback: TTextEditorLanguageServerSettingsFallback;
   protected
     function GetDisplayName: string; override;
   public
@@ -35,6 +37,7 @@ type
     property Name: string read FName write FName;
     property RootPath: string read FRootPath write FRootPath;
     property RootPathKind: TTextEditorLanguageServerRootPathKind read FRootPathKind write FRootPathKind default rpDocumentFolder;
+    property SettingsFallback: TTextEditorLanguageServerSettingsFallback read FSettingsFallback write FSettingsFallback default sfNone;
   end;
 
   TTextEditorLanguageServerDefinitions = class(TOwnedCollection)
@@ -66,6 +69,8 @@ type
     FSignatureHelpEnabled: Boolean;
     FSyncTimeout: Integer;
     function BuildConfiguration(const ADefinition: TTextEditorLanguageServerDefinition; const AMarkerFileName: string): string;
+    function CreateDelphiLspFallbackSettings(const ADefinition: TTextEditorLanguageServerDefinition; const AFileName: string): string;
+    function ResolveConfiguration(const ADefinition: TTextEditorLanguageServerDefinition; const AFileName: string; out ARootPath: string): string;
     function ResolveRootPath(const ADefinition: TTextEditorLanguageServerDefinition; const AFileName: string; out AMarkerFileName: string): string;
     procedure InstanceGotoLocation(const ASender: TObject; const ALocation: TTextEditorLanguageServerLocation);
     procedure InstanceLog(const ASender: TObject; const AMessage: string);
@@ -96,7 +101,7 @@ type
 implementation
 
 uses
-  System.IOUtils;
+  System.Hash, System.IOUtils;
 
 { TTextEditorLanguageServerDefinition }
 
@@ -143,6 +148,7 @@ begin
     Self.FName := Name;
     Self.FRootPath := RootPath;
     Self.FRootPathKind := RootPathKind;
+    Self.FSettingsFallback := SettingsFallback;
   end
   else
     inherited Assign(ASource);
@@ -273,11 +279,100 @@ begin
   end;
 end;
 
+function TTextEditorLanguageServers.CreateDelphiLspFallbackSettings(const ADefinition: TTextEditorLanguageServerDefinition;
+  const AFileName: string): string;
+
+  function EscapedPath(const APath: string): string;
+  begin
+    Result := APath.Replace('\', '\\');
+  end;
+
+  function ServerFileName: string;
+  var
+    LCommandLine: string;
+    LIndex: Integer;
+  begin
+    LCommandLine := ADefinition.CommandLine.Trim;
+
+    if LCommandLine.StartsWith('"') then
+    begin
+      LIndex := LCommandLine.IndexOf('"', 1);
+      Result := if LIndex > 1 then LCommandLine.Substring(1, LIndex - 1) else ''
+    end
+    else
+      Result := LCommandLine.Split([' '])[0];
+  end;
+
+var
+  LBinDirectory, LLibDirectory, LDirectory, LDocumentDirectory: string;
+  LCompilerFileNames: TArray<string>;
+  LProjectFileName, LSettingsFileName: string;
+begin
+  Result := '';
+
+  LBinDirectory := ExtractFileDir(ServerFileName);
+  LLibDirectory := ExtractFileDir(LBinDirectory) + '\lib\Win32\release';
+
+  if not TDirectory.Exists(LLibDirectory) then
+    Exit;
+
+  LCompilerFileNames := TDirectory.GetFiles(LBinDirectory, 'dcc32*.dll');
+
+  if Length(LCompilerFileNames) = 0 then
+    Exit;
+
+  LDocumentDirectory := ExtractFileDir(AFileName);
+  LDirectory := TPath.Combine(TPath.GetTempPath, 'TTextEditor');
+  LProjectFileName := TPath.Combine(LDirectory, 'Fallback.dproj');
+  LSettingsFileName := TPath.Combine(LDirectory, 'Fallback.' +
+    IntToHex(THashFNV1a32.GetHashValue(LDocumentDirectory.ToLower), 8) + '.delphilsp.json');
+
+  try
+    TDirectory.CreateDirectory(LDirectory);
+    TFile.WriteAllText(LProjectFileName, '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"/>',
+      TEncoding.UTF8);
+    TFile.WriteAllText(LSettingsFileName,
+      '{"settings":{"project":"' + TTextEditorLanguageServer.FileNameToUri(LProjectFileName) +
+      '","dllname":"' + ExtractFileName(LCompilerFileNames[High(LCompilerFileNames)]) +
+      '","dccOptions":"-U\"' + EscapedPath(LDocumentDirectory) + '\";\"' + EscapedPath(LLibDirectory) + '\" ' +
+      '-NSSystem;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;Winapi;System.Win"}}',
+      TEncoding.UTF8);
+  except
+    Exit('');
+  end;
+
+  Result := LSettingsFileName;
+end;
+
+function TTextEditorLanguageServers.ResolveConfiguration(const ADefinition: TTextEditorLanguageServerDefinition;
+  const AFileName: string; out ARootPath: string): string;
+var
+  LMarkerFileName: string;
+begin
+  ARootPath := ResolveRootPath(ADefinition, AFileName, LMarkerFileName);
+
+  if LMarkerFileName.IsEmpty and (ADefinition.SettingsFallback = sfDelphiLsp) and
+    ADefinition.Configuration.Contains('%MARKERFILEURI%') then
+  begin
+    LMarkerFileName := CreateDelphiLspFallbackSettings(ADefinition, AFileName);
+
+    if Assigned(FOnLog) then
+      if LMarkerFileName.IsEmpty then
+        FOnLog(Self, '[' + ADefinition.Name + '] No ' + ADefinition.RootPath +
+          ' found for this file and no default settings could be generated - completions will be keywords only.')
+      else
+        FOnLog(Self, '[' + ADefinition.Name + '] No ' + ADefinition.RootPath +
+          ' found for this file - using generated default settings (the file''s folder and the Studio library).');
+  end;
+
+  Result := BuildConfiguration(ADefinition, LMarkerFileName);
+end;
+
 function TTextEditorLanguageServers.Attach(const AEditor: TCustomTextEditor; const AFileName: string): TTextEditorLanguageServer;
 var
   LDefinition: TTextEditorLanguageServerDefinition;
   LAttachment: TAttachment;
-  LMarkerFileName, LRootPath: string;
+  LConfiguration, LRootPath: string;
 begin
   LDefinition := DefinitionForFileName(AFileName);
 
@@ -289,13 +384,21 @@ begin
 
   if FAttachments.TryGetValue(AEditor, LAttachment) and (LAttachment.DefinitionId = LDefinition.ID) then
   begin
+    LConfiguration := ResolveConfiguration(LDefinition, AFileName, LRootPath);
+
+    if LConfiguration <> LAttachment.Instance.Configuration then
+    begin
+      LAttachment.Instance.Configuration := LConfiguration;
+      LAttachment.Instance.SendConfiguration(LConfiguration);
+    end;
+
     LAttachment.Instance.OpenDocument(AFileName, LDefinition.LanguageId);
     Exit(LAttachment.Instance);
   end;
 
   Detach(AEditor);
 
-  LRootPath := ResolveRootPath(LDefinition, AFileName, LMarkerFileName);
+  LConfiguration := ResolveConfiguration(LDefinition, AFileName, LRootPath);
 
   Result := TTextEditorLanguageServer.Create(Self);
   Result.Editor := AEditor;
@@ -303,7 +406,7 @@ begin
   Result.RootPath := LRootPath;
   Result.ServerDirectory := LRootPath;
   Result.InitializationOptions := LDefinition.InitializationOptions;
-  Result.Configuration := BuildConfiguration(LDefinition, LMarkerFileName);
+  Result.Configuration := LConfiguration;
   Result.CompletionTriggerEnabled := FCompletionTriggerEnabled;
   Result.HoverDelay := FHoverDelay;
   Result.HoverEnabled := FHoverEnabled;
@@ -437,6 +540,7 @@ begin
     LDefinition.RootPathKind := rpMarkerFile;
     LDefinition.RootPath := '*.delphilsp.json';
     LDefinition.Configuration := '{"settings":{"settingsFile":"%MARKERFILEURI%"}}';
+    LDefinition.SettingsFallback := sfDelphiLsp;
   end;
 
   LFileName := ProgramFilesDirectory + '\LLVM\bin\clangd.exe';
