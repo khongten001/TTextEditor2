@@ -168,7 +168,7 @@ type
   end;
 
 const
-  cFileTypeHighlighters: array [0 .. 105] of TFileTypeHighlighter = (
+  cFileTypeHighlighters: array [0 .. 104] of TFileTypeHighlighter = (
     (Extensions: '.abap'; Highlighter: 'ABAP'),
     (Extensions: '.as'; Highlighter: 'ActionScript'),
     (Extensions: '.ads;.adb'; Highlighter: 'Ada'),
@@ -209,8 +209,7 @@ const
     (Extensions: '.bi;.bas'; Highlighter: 'FreeBASIC'),
     (Extensions: '.nc;.gcode'; Highlighter: 'G-code'),
     (Extensions: '.gd'; Highlighter: 'GDScript'),
-    (Extensions: '.gitignore'; Highlighter: 'Git Ignore'),
-    (Extensions: '.gitattributes'; Highlighter: 'Git'),
+    (Extensions: '.gitattributes;.gitignore'; Highlighter: 'Git'),
     (Extensions: '.glsl'; Highlighter: 'GLSL'),
     (Extensions: '.go'; Highlighter: 'Go'),
     (Extensions: '.gravity'; Highlighter: 'Gravity'),
