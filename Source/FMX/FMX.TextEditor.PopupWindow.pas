@@ -3,7 +3,7 @@ unit FMX.TextEditor.PopupWindow;
 interface
 
 uses
-  System.Classes, System.Types, System.UITypes, FMX.Controls, FMX.Graphics, FMX.Types;
+  System.Classes, System.Types, System.UITypes, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Types;
 
 type
   TTextEditorPopupWindow = class(TControl)
@@ -16,12 +16,17 @@ type
     { FMX TControl.Show/Hide are empty change-notification methods, not actions like in the VCL - the popup
       reintroduces them to actually toggle visibility. }
     procedure Hide; reintroduce; virtual;
+    procedure SetBounds(X, Y, AWidth, AHeight: Single); override;
     procedure SetOrigin(const AOrigin: TPointF); virtual;
     constructor Create(AOwner: TComponent); override;
     property ActiveControl: TControl read FActiveControl;
   end;
 
 implementation
+
+type
+  TControlAccess = class(TControl);
+  TFormAccess = class(TCommonCustomForm);
 
 constructor TTextEditorPopupWindow.Create(AOwner: TComponent);
 var
@@ -64,6 +69,27 @@ end;
 procedure TTextEditorPopupWindow.Hide;
 begin
   Visible := False;
+end;
+
+procedure TTextEditorPopupWindow.SetBounds(X, Y, AWidth, AHeight: Single);
+var
+  LOldBounds, LUnionBounds: TRectF;
+begin
+  LOldBounds := BoundsRect;
+
+  inherited SetBounds(X, Y, AWidth, AHeight);
+
+  if Visible and (LOldBounds <> BoundsRect) then
+  begin
+    LUnionBounds := TRectF.Union(LOldBounds, BoundsRect);
+    LUnionBounds.Inflate(2, 2);
+
+    if Parent is TControl then
+      TControlAccess(Parent).RepaintRect(LUnionBounds)
+    else
+    if Parent is TCommonCustomForm then
+      TFormAccess(Parent).InvalidateRect(LUnionBounds);
+  end;
 end;
 
 procedure TTextEditorPopupWindow.Show(const AOrigin: TPointF);

@@ -393,10 +393,6 @@ var
     Canvas.Fill.Color := LBackgroundColor;
     Canvas.FillRect(LTrackRect, 0, 0, [], 1);
 
-    Canvas.Stroke.Kind := TBrushKind.Solid;
-    Canvas.Stroke.Color := LBorderColor;
-    DrawPixelLine(LTrackRect.Left, LTrackRect.Top, LTrackRect.Left, LTrackRect.Bottom);
-
     LThumbRect := ScrollBarThumbRect;
 
     Canvas.Fill.Color := LForegroundColor;
@@ -1262,7 +1258,6 @@ begin
   end;
 
   SetBounds(LBounds.Left, LBounds.Top, LBounds.Width, LBounds.Height);
-  Repaint;
 end;
 
 procedure TTextEditorCompletionProposalPopupWindow.MouseUp(AButton: TMouseButton; AShift: TShiftState; X, Y: Single);

@@ -1,5 +1,7 @@
 unit TextEditor.CompletionProposal.PopupWindow;
 
+{$I TextEditor.Defines.inc}
+
 interface
 
 uses
@@ -35,11 +37,15 @@ type
     FUserSizing: Boolean;
     FValueSet: Boolean;
     function GetItemHeight: Integer;
+    function ResizeCornerSize: Integer;
+    function ResizeGripSize: Integer;
     function ScrollBarArrowSize: Integer;
     function ScrollBarMaxTopLine: Integer;
     function ScrollBarRect: TRect;
+    function ScrollBarResizeCornerSize: Integer;
     function ScrollBarThumbRect: TRect;
     function ScrollBarVisible: Boolean;
+    function ScrollBarWidth: Integer;
     function UseStyledScrollBar: Boolean;
     procedure ActivateDropShadow(const AHandle: THandle);
     procedure AddKeyHandlers;
@@ -49,6 +55,10 @@ type
     procedure HandleOnValidate(ASender: TObject; const AEndToken: Char);
     procedure MoveSelectedLine(const ALineCount: Integer);
     procedure NotifySelectedItemChange;
+    procedure PaintFlatScrollBar(const ACanvas: TCanvas);
+{$IFDEF ALPHASKINS}
+    procedure PaintSkinnedScrollBar(const ACanvas: TCanvas);
+{$ENDIF}
     procedure PaintStyledScrollBar(const ACanvas: TCanvas);
     procedure RemoveKeyHandlers;
     procedure SetCurrentString(const AValue: string);
@@ -82,13 +92,28 @@ type
     property OnValidate: TTextEditorValidateEvent read FOnValidate write FOnValidate;
     property ShowDescription: Boolean read FShowDescription write FShowDescription;
     property TopLine: Integer read FTopLine write SetTopLine;
+    property UserSizing: Boolean read FUserSizing;
   end;
 
 implementation
 
 uses
   System.Generics.Defaults, System.Math, System.SysUtils, System.UITypes, TextEditor, TextEditor.CompletionProposal.Snippets,
-  TextEditor.Consts, TextEditor.Highlighter, TextEditor.KeyCommands, TextEditor.PaintHelper, Vcl.Themes;
+  TextEditor.Consts, TextEditor.Highlighter, TextEditor.KeyCommands, TextEditor.PaintHelper, Vcl.Themes
+{$IFDEF ALPHASKINS}
+  , acntUtils, acSBUtils, sConst, sGraphUtils, sSkinManager, sStyleSimply
+{$ENDIF};
+
+const
+  { Logical pixels at 96 dpi }
+  RESIZE_GRIP_SIZE = 4;
+  RESIZE_CORNER_SIZE = 16;
+  SCROLL_BAR_MIN_THUMB_SIZE = 8;
+  SCROLL_BAR_RESIZE_CORNER_SIZE = 8;
+
+{$IFDEF ALPHASKINS}
+  SCROLL_METRIC_BUTTON_SIZE = 0;
+{$ENDIF}
 
 constructor TTextEditorCompletionProposalPopupWindow.Create(AOwner: TComponent);
 begin
@@ -428,6 +453,8 @@ begin
     PaintStyledScrollBar(FBitmapBuffer.Canvas);
 
   Canvas.Draw(0, 0, FBitmapBuffer);
+
+  PaintClientBorder;
 end;
 
 function TTextEditorCompletionProposalPopupWindow.SelectedItemIndex: Integer;
@@ -916,9 +943,24 @@ begin
   end;
 end;
 
+function TTextEditorCompletionProposalPopupWindow.ResizeCornerSize: Integer;
+begin
+  Result := MulDiv(RESIZE_CORNER_SIZE, CurrentPPI, USER_DEFAULT_SCREEN_DPI);
+end;
+
+function TTextEditorCompletionProposalPopupWindow.ResizeGripSize: Integer;
+begin
+  Result := MulDiv(RESIZE_GRIP_SIZE, CurrentPPI, USER_DEFAULT_SCREEN_DPI);
+end;
+
+function TTextEditorCompletionProposalPopupWindow.ScrollBarResizeCornerSize: Integer;
+begin
+  Result := MulDiv(SCROLL_BAR_RESIZE_CORNER_SIZE, CurrentPPI, USER_DEFAULT_SCREEN_DPI);
+end;
+
 function TTextEditorCompletionProposalPopupWindow.UseStyledScrollBar: Boolean;
 begin
-  Result := TStyleManager.IsCustomStyleActive;
+  Result := TStyleManager.IsCustomStyleActive or IsSkinned;
 end;
 
 function TTextEditorCompletionProposalPopupWindow.ScrollBarVisible: Boolean;
@@ -926,8 +968,23 @@ begin
   Result := UseStyledScrollBar and (Length(FItemIndexArray) > FCompletionProposal.VisibleLines);
 end;
 
+function TTextEditorCompletionProposalPopupWindow.ScrollBarWidth: Integer;
+begin
+{$IFDEF ALPHASKINS}
+  if IsSkinned and Assigned(ScrollWnd.sBarVert) then
+    Exit(GetScrollMetric(ScrollWnd.sBarVert, SM_SCROLLWIDTH));
+{$ENDIF}
+
+  Result := GetSystemMetrics(SM_CXVSCROLL);
+end;
+
 function TTextEditorCompletionProposalPopupWindow.ScrollBarArrowSize: Integer;
 begin
+{$IFDEF ALPHASKINS}
+  if IsSkinned and Assigned(ScrollWnd.sBarVert) then
+    Exit(GetScrollMetric(ScrollWnd.sBarVert, SCROLL_METRIC_BUTTON_SIZE, True));
+{$ENDIF}
+
   Result := GetSystemMetrics(SM_CYVSCROLL);
 end;
 
@@ -938,28 +995,154 @@ end;
 
 function TTextEditorCompletionProposalPopupWindow.ScrollBarRect: TRect;
 begin
-  Result := Rect(ClientWidth - GetSystemMetrics(SM_CXVSCROLL), 0, ClientWidth, ClientHeight);
+  Result := Rect(ClientWidth - ScrollBarWidth, 0, ClientWidth, ClientHeight);
 end;
 
 function TTextEditorCompletionProposalPopupWindow.ScrollBarThumbRect: TRect;
 var
   LRect: TRect;
-  LTrackTop, LTrackHeight, LThumbHeight, LThumbTop: Integer;
+  LTrackTop, LTrackHeight, LMinThumbHeight, LThumbHeight, LThumbTop: Integer;
 begin
   LRect := ScrollBarRect;
   LTrackTop := LRect.Top + ScrollBarArrowSize;
-  LTrackHeight := LRect.Height - 2 * ScrollBarArrowSize;
+  LTrackHeight := Max(0, LRect.Height - 2 * ScrollBarArrowSize);
+
+  { The arrow size is no minimum with arrowless skinned scroll bars. }
+  LMinThumbHeight := Min(Max(ScrollBarArrowSize, MulDiv(SCROLL_BAR_MIN_THUMB_SIZE, CurrentPPI, USER_DEFAULT_SCREEN_DPI)),
+    LTrackHeight);
   LThumbHeight := EnsureRange(MulDiv(LTrackHeight, FCompletionProposal.VisibleLines, Max(1, Length(FItemIndexArray))),
-    Min(ScrollBarArrowSize, LTrackHeight), LTrackHeight);
+    LMinThumbHeight, LTrackHeight);
   LThumbTop := LTrackTop + MulDiv(TopLine, LTrackHeight - LThumbHeight, Max(1, ScrollBarMaxTopLine));
 
   Result := Rect(LRect.Left, LThumbTop, LRect.Right, LThumbTop + LThumbHeight);
 end;
 
+procedure TTextEditorCompletionProposalPopupWindow.PaintFlatScrollBar(const ACanvas: TCanvas);
+var
+  LTextEditor: TCustomTextEditor;
+  LRect: TRect;
+  LAccentColor: TColor;
+
+  procedure PaintArrow(const ARect: TRect; const ADownwards: Boolean);
+  var
+    LCenterX, LCenterY, LSize: Integer;
+  begin
+    LSize := ARect.Width div 4;
+    LCenterX := (ARect.Left + ARect.Right) div 2;
+    LCenterY := (ARect.Top + ARect.Bottom) div 2;
+
+    if ADownwards then
+      ACanvas.Polygon([Point(LCenterX - LSize, LCenterY - LSize div 2), Point(LCenterX + LSize, LCenterY - LSize div 2),
+        Point(LCenterX, LCenterY + LSize div 2)])
+    else
+      ACanvas.Polygon([Point(LCenterX - LSize, LCenterY + LSize div 2), Point(LCenterX + LSize, LCenterY + LSize div 2),
+        Point(LCenterX, LCenterY - LSize div 2)]);
+  end;
+
+begin
+  LTextEditor := if Assigned(Owner) then Owner as TCustomTextEditor else nil;
+
+  if not Assigned(LTextEditor) then
+    Exit;
+
+  LRect := ScrollBarRect;
+  LAccentColor := MiddleColor(LTextEditor.Colors.CompletionProposalBackground,
+    LTextEditor.Colors.CompletionProposalForeground);
+
+  ACanvas.Brush.Color := LTextEditor.Colors.CompletionProposalBackground;
+  ACanvas.FillRect(LRect);
+
+  ACanvas.Brush.Color := LAccentColor;
+  ACanvas.Pen.Color := LAccentColor;
+  ACanvas.FillRect(ScrollBarThumbRect);
+
+  PaintArrow(Rect(LRect.Left, LRect.Top, LRect.Right, LRect.Top + ScrollBarArrowSize), False);
+  PaintArrow(Rect(LRect.Left, LRect.Bottom - ScrollBarArrowSize, LRect.Right, LRect.Bottom), True);
+end;
+
+{$IFDEF ALPHASKINS}
+{ Paints the scroll bar with the active skin's own scroll bar art, using the same public painting routines AlphaSkins
+  uses for its non-client scroll bars. }
+procedure TTextEditorCompletionProposalPopupWindow.PaintSkinnedScrollBar(const ACanvas: TCanvas);
+var
+  LTextEditor: TCustomTextEditor;
+  LSkinData: TacSkinData;
+  LRect, LThumbRect: TRect;
+  LBitmap: Vcl.Graphics.TBitmap;
+  LCacheInfo: TCacheInfo;
+  LThumbMiddle, LArrowSize: Integer;
+begin
+  LTextEditor := if Assigned(Owner) then Owner as TCustomTextEditor else nil;
+
+  if not Assigned(LTextEditor) then
+    Exit;
+
+  LSkinData := SkinData.CommonSkinData;
+  LRect := ScrollBarRect;
+
+  { The window can be painted into the skin cache before it has its final size - the skin art cannot be painted into
+    degenerate rects. }
+  if (LRect.Width < 2) or (LRect.Height < 4) then
+    Exit;
+
+  LThumbRect := ScrollBarThumbRect;
+  OffsetRect(LThumbRect, -LRect.Left, -LRect.Top);
+
+  LBitmap := CreateBmp32(MkRect(LRect.Width, LRect.Height));
+  try
+    LCacheInfo.Bmp := nil;
+    LCacheInfo.X := 0;
+    LCacheInfo.Y := 0;
+    LCacheInfo.FillColor := ColorToRGB(LTextEditor.Colors.CompletionProposalBackground);
+    LCacheInfo.FillRect := MkRect;
+    LCacheInfo.Ready := False;
+
+    LThumbMiddle := EnsureRange(LThumbRect.Top + LThumbRect.Height div 2, 2, LBitmap.Height - 2);
+
+    with LSkinData.Scrolls[asTop] do
+      PaintItemFast(SkinIndex, MaskIndex, BGIndex[0], BGIndex[1], LCacheInfo, True, 0,
+        MkRect(LBitmap.Width, LThumbMiddle), LRect.TopLeft, LBitmap, LSkinData);
+
+    with LSkinData.Scrolls[asBottom] do
+      PaintItemFast(SkinIndex, MaskIndex, BGIndex[0], BGIndex[1], LCacheInfo, True, 0,
+        Rect(0, LThumbMiddle, LBitmap.Width, LBitmap.Height), Point(LRect.Left, LRect.Top + LThumbMiddle), LBitmap,
+        LSkinData);
+
+    LArrowSize := ScrollBarArrowSize;
+
+    if LArrowSize > 0 then
+    begin
+      ac_DrawScrollBtn(Rect(0, 0, LBitmap.Width, LArrowSize), 0, LBitmap, LSkinData, asTop);
+      ac_DrawScrollBtn(Rect(0, LBitmap.Height - LArrowSize, LBitmap.Width, LBitmap.Height), 0, LBitmap, LSkinData,
+        asBottom);
+    end;
+
+    if LThumbRect.Height >= 2 then
+      ac_DrawSlider(LThumbRect, 0, LBitmap, LSkinData, True);
+
+    ACanvas.Draw(LRect.Left, LRect.Top, LBitmap);
+  finally
+    LBitmap.Free;
+  end;
+end;
+{$ENDIF}
+
 procedure TTextEditorCompletionProposalPopupWindow.PaintStyledScrollBar(const ACanvas: TCanvas);
 var
   LRect, LArrowRect: TRect;
 begin
+  if IsSkinned and not TStyleManager.IsCustomStyleActive then
+  begin
+{$IFDEF ALPHASKINS}
+    if IsValidIndex(SkinData.CommonSkinData.Scrolls[asTop].SkinIndex, Length(SkinData.CommonSkinData.gd)) then
+      PaintSkinnedScrollBar(ACanvas)
+    else
+{$ENDIF}
+      PaintFlatScrollBar(ACanvas);
+
+    Exit;
+  end;
+
   LRect := ScrollBarRect;
 
   StyleServices.DrawElement(ACanvas.Handle, StyleServices.GetElementDetails(tsUpperTrackVertNormal), LRect);
@@ -1038,9 +1221,10 @@ end;
 
 procedure TTextEditorCompletionProposalPopupWindow.WMNCHitTest(var AMessage: TWMNCHitTest);
 var
-  LPoint: TPoint;
-  LGripSize: Integer;
+  LRect: TRect;
+  LGripSize, LCornerSize: Integer;
   LOnLeftEdge, LOnTopEdge, LOnRightEdge, LOnBottomEdge: Boolean;
+  LNearLeftCorner, LNearTopCorner, LNearRightCorner, LNearBottomCorner: Boolean;
 begin
   inherited;
 
@@ -1050,48 +1234,80 @@ begin
   if not Assigned(FCompletionProposal) or not (cpoResizable in FCompletionProposal.Options) then
     Exit;
 
-  LPoint := ScreenToClient(Point(AMessage.XPos, AMessage.YPos));
-  LGripSize := GetSystemMetrics(SM_CXSIZEFRAME);
-
-  LOnLeftEdge := LPoint.X < LGripSize;
-  LOnTopEdge := LPoint.Y < LGripSize;
-  LOnRightEdge := LPoint.X >= ClientWidth - LGripSize;
-  LOnBottomEdge := LPoint.Y >= ClientHeight - LGripSize;
+  GetWindowRect(Handle, LRect);
 
   if AMessage.Result = HTVSCROLL then
   begin
-    if LOnBottomEdge then
+    LCornerSize := ScrollBarResizeCornerSize;
+
+    if AMessage.YPos >= LRect.Bottom - LCornerSize then
       AMessage.Result := HTBOTTOMRIGHT
     else
-    if LOnTopEdge then
-      AMessage.Result := HTTOPRIGHT;
+    if AMessage.YPos < LRect.Top + LCornerSize then
+      AMessage.Result := HTTOPRIGHT
+    else
+    if AMessage.XPos >= LRect.Right - ResizeGripSize then
+      AMessage.Result := HTRIGHT;
 
     Exit;
   end;
 
-  if LOnTopEdge and LOnLeftEdge then
-    AMessage.Result := HTTOPLEFT
-  else
-  if LOnTopEdge and LOnRightEdge then
-    AMessage.Result := HTTOPRIGHT
-  else
-  if LOnBottomEdge and LOnLeftEdge then
-    AMessage.Result := HTBOTTOMLEFT
-  else
-  if LOnBottomEdge and LOnRightEdge then
-    AMessage.Result := HTBOTTOMRIGHT
-  else
-  if LOnLeftEdge then
-    AMessage.Result := HTLEFT
-  else
+  LGripSize := ResizeGripSize;
+  LCornerSize := ResizeCornerSize;
+
+  LOnLeftEdge := AMessage.XPos < LRect.Left + LGripSize;
+  LOnTopEdge := AMessage.YPos < LRect.Top + LGripSize;
+  LOnRightEdge := AMessage.XPos >= LRect.Right - LGripSize;
+  LOnBottomEdge := AMessage.YPos >= LRect.Bottom - LGripSize;
+
+  LNearLeftCorner := AMessage.XPos < LRect.Left + LCornerSize;
+  LNearTopCorner := AMessage.YPos < LRect.Top + LCornerSize;
+  LNearRightCorner := AMessage.XPos >= LRect.Right - LCornerSize;
+  LNearBottomCorner := AMessage.YPos >= LRect.Bottom - LCornerSize;
+
   if LOnTopEdge then
-    AMessage.Result := HTTOP
-  else
-  if LOnRightEdge then
-    AMessage.Result := HTRIGHT
+  begin
+    if LNearLeftCorner then
+      AMessage.Result := HTTOPLEFT
+    else
+    if LNearRightCorner then
+      AMessage.Result := HTTOPRIGHT
+    else
+      AMessage.Result := HTTOP;
+  end
   else
   if LOnBottomEdge then
-    AMessage.Result := HTBOTTOM;
+  begin
+    if LNearLeftCorner then
+      AMessage.Result := HTBOTTOMLEFT
+    else
+    if LNearRightCorner then
+      AMessage.Result := HTBOTTOMRIGHT
+    else
+      AMessage.Result := HTBOTTOM;
+  end
+  else
+  if LOnLeftEdge then
+  begin
+    if LNearTopCorner then
+      AMessage.Result := HTTOPLEFT
+    else
+    if LNearBottomCorner then
+      AMessage.Result := HTBOTTOMLEFT
+    else
+      AMessage.Result := HTLEFT;
+  end
+  else
+  if LOnRightEdge then
+  begin
+    if LNearTopCorner then
+      AMessage.Result := HTTOPRIGHT
+    else
+    if LNearBottomCorner then
+      AMessage.Result := HTBOTTOMRIGHT
+    else
+      AMessage.Result := HTRIGHT;
+  end;
 end;
 
 procedure TTextEditorCompletionProposalPopupWindow.WMGetMinMaxInfo(var AMessage: TWMGetMinMaxInfo);

@@ -5,7 +5,7 @@
 interface
 
 uses
-  Winapi.Messages, System.Classes, System.Types, Vcl.Controls, Vcl.Forms, Vcl.Graphics
+  Winapi.Messages, Winapi.Windows, System.Classes, System.Types, Vcl.Controls, Vcl.Forms, Vcl.Graphics
 {$IFDEF ALPHASKINS}
   , acSBUtils, sCommonData, sStyleSimply
 {$ENDIF};
@@ -25,7 +25,10 @@ type
     FActiveControl: TWinControl;
     FBorderColor: TColor;
     FBorderWidth: Integer;
+    function IsSkinned: Boolean;
     procedure CreateParams(var Params: TCreateParams); override;
+    procedure PaintBorder;
+    procedure PaintClientBorder;
     procedure Show(const AOrigin: TPoint); virtual;
   public
     constructor Create(AOwner: TComponent); override;
@@ -34,17 +37,17 @@ type
     procedure WndProc(var AMessage: TMessage); override;
     property ActiveControl: TWinControl read FActiveControl;
 {$IFDEF ALPHASKINS}
+    property ScrollWnd: TacScrollWnd read FScrollWnd;
     property SkinData: TsScrollWndData read FSkinData write FSkinData;
 {$ENDIF}
   end;
 
 implementation
 
-uses
-  Winapi.Windows
 {$IFDEF ALPHASKINS}
-  , System.SysUtils, sConst, sMessages, sSkinProps, sSkinManager
-{$ENDIF};
+uses
+  System.SysUtils, sConst, sMessages, sSkinProps, sSkinManager;
+{$ENDIF}
 
 constructor TTextEditorPopupWindow.Create(AOwner: TComponent);
 begin
@@ -98,6 +101,9 @@ begin
 
   if not Assigned(FScrollWnd) and FSkinData.SkinManager.Active then
     FScrollWnd := TacEditWnd.Create(Handle, SkinData, SkinData.SkinManager, LSkinParams, False);
+
+  if Assigned(FScrollWnd) then
+    SetWindowPos(Handle, 0, 0, 0, 0, 0, SWP_NOMOVE or SWP_NOSIZE or SWP_NOZORDER or SWP_NOACTIVATE or SWP_FRAMECHANGED);
 {$ENDIF}
 end;
 
@@ -127,20 +133,38 @@ begin
   AMessage.Result := 1;
 end;
 
+function TTextEditorPopupWindow.IsSkinned: Boolean;
+begin
+{$IFDEF ALPHASKINS}
+  Result := Assigned(FScrollWnd) and Assigned(FSkinData) and FSkinData.Skinned;
+{$ELSE}
+  Result := False;
+{$ENDIF}
+end;
+
 procedure TTextEditorPopupWindow.WMNCCalcSize(var AMessage: TWMNCCalcSize);
 begin
   inherited;
 
-  InflateRect(AMessage.CalcSize_Params.rgrc[0], -FBorderWidth, -FBorderWidth);
+  if not IsSkinned then
+    InflateRect(AMessage.CalcSize_Params.rgrc[0], -FBorderWidth, -FBorderWidth);
 end;
 
 procedure TTextEditorPopupWindow.WMNCPaint(var AMessage: TWMNCPaint);
+begin
+  inherited;
+
+  PaintBorder;
+end;
+
+procedure TTextEditorPopupWindow.PaintBorder;
 var
   LDC: HDC;
   LRect: TRect;
   LBrush: HBRUSH;
 begin
-  inherited;
+  if (FBorderWidth <= 0) or IsSkinned then
+    Exit;
 
   LDC := GetWindowDC(Handle);
   try
@@ -156,6 +180,24 @@ begin
     end;
   finally
     ReleaseDC(Handle, LDC);
+  end;
+end;
+
+procedure TTextEditorPopupWindow.PaintClientBorder;
+var
+  LIndex: Integer;
+  LRect: TRect;
+begin
+  if (FBorderWidth <= 0) or not IsSkinned then
+    Exit;
+
+  Canvas.Brush.Color := FBorderColor;
+  LRect := ClientRect;
+
+  for LIndex := 1 to FBorderWidth do
+  begin
+    Canvas.FrameRect(LRect);
+    InflateRect(LRect, -1, -1);
   end;
 end;
 

@@ -24306,8 +24306,8 @@ begin
       if Assigned(FCompletionProposalPopupWindow) then
         SetCompletionProposalPopupWindowLocation;
     WM_KILLFOCUS:
-      if not Assigned(FCompletionProposalPopupWindow) or not FCompletionProposalPopupWindow.HandleAllocated or
-        (HWND(AMessage.WParam) <> FCompletionProposalPopupWindow.Handle) then
+      if Assigned(FCompletionProposalPopupWindow) and not FCompletionProposalPopupWindow.UserSizing and
+        (not FCompletionProposalPopupWindow.HandleAllocated or (HWND(AMessage.WParam) <> FCompletionProposalPopupWindow.Handle)) then
         FreeCompletionProposalPopupWindow;
     WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_VSCROLL, WM_HSCROLL:
       FreeCompletionProposalPopupWindow;

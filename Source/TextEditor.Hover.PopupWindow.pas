@@ -456,6 +456,8 @@ begin
     else
       Canvas.TextOut(LRow.Left, LRow.Top + 1, LRow.Text);
   end;
+
+  PaintClientBorder;
 end;
 
 procedure TTextEditorHoverPopupWindow.MouseDown(AButton: TMouseButton; AShift: TShiftState; X, Y: Integer);
