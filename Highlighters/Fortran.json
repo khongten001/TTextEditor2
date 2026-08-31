@@ -1,0 +1,390 @@
+{
+  "Highlighter": {
+    "Sample": [
+      "! Hello, World! in Fortran\r\n",
+      "\r\n",
+      "program hello\r\n",
+      "  print *, \"Hello, World!\"\r\n",
+      "end program hello"
+    ],
+    "MainRules": {
+      "Attributes": {
+        "Element": "Editor"
+      },
+      "SubRules": {
+        "Range": [
+          {
+            "Type": "LineComment",
+            "Attributes": {
+              "Element": "Comment"
+            },
+            "Properties": {
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "!"
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "Properties": {
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "'",
+              "Close": "'"
+            }
+          },
+          {
+            "Type": "String",
+            "Attributes": {
+              "Element": "String"
+            },
+            "Properties": {
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "\"",
+              "Close": "\""
+            }
+          },
+          {
+            "Type": "Directive",
+            "Attributes": {
+              "Element": "Directive"
+            },
+            "Properties": {
+              "CloseOnEndOfLine": true
+            },
+            "TokenRange": {
+              "Open": "#"
+            }
+          }
+        ],
+        "KeyList": [
+          {
+            "Type": "ReservedWord",
+            "Words": [
+              "abstract",
+              "allocatable",
+              "allocate",
+              "assign",
+              "associate",
+              "asynchronous",
+              "backspace",
+              "bind",
+              "block",
+              "call",
+              "case",
+              "class",
+              "close",
+              "common",
+              "concurrent",
+              "contains",
+              "contiguous",
+              "continue",
+              "critical",
+              "cycle",
+              "data",
+              "deallocate",
+              "default",
+              "deferred",
+              "dimension",
+              "do",
+              "double",
+              "elemental",
+              "else",
+              "elseif",
+              "elsewhere",
+              "end",
+              "endassociate",
+              "endblock",
+              "enddo",
+              "endfile",
+              "endforall",
+              "endfunction",
+              "endif",
+              "endinterface",
+              "endmodule",
+              "endprogram",
+              "endselect",
+              "endsubmodule",
+              "endsubroutine",
+              "endtype",
+              "endwhere",
+              "entry",
+              "enum",
+              "enumerator",
+              "equivalence",
+              "error",
+              "exit",
+              "extends",
+              "external",
+              "final",
+              "flush",
+              "forall",
+              "format",
+              "function",
+              "generic",
+              "goto",
+              "if",
+              "implicit",
+              "import",
+              "impure",
+              "include",
+              "inquire",
+              "intent",
+              "interface",
+              "intrinsic",
+              "module",
+              "namelist",
+              "non_overridable",
+              "none",
+              "nopass",
+              "nullify",
+              "only",
+              "open",
+              "operator",
+              "optional",
+              "parameter",
+              "pass",
+              "pause",
+              "pointer",
+              "precision",
+              "print",
+              "private",
+              "procedure",
+              "program",
+              "protected",
+              "public",
+              "pure",
+              "read",
+              "recursive",
+              "result",
+              "return",
+              "rewind",
+              "save",
+              "select",
+              "sequence",
+              "stop",
+              "submodule",
+              "subroutine",
+              "sync",
+              "target",
+              "then",
+              "type",
+              "use",
+              "value",
+              "volatile",
+              "wait",
+              "where",
+              "while",
+              "write"
+            ],
+            "Attributes": {
+              "Element": "ReservedWord"
+            }
+          },
+          {
+            "Type": "Value",
+            "Words": [
+              "character",
+              "complex",
+              "integer",
+              "logical",
+              "real"
+            ],
+            "Attributes": {
+              "Element": "Value"
+            }
+          },
+          {
+            "Type": "LogicalOperator",
+            "Words": [
+              ".and.",
+              ".eq.",
+              ".eqv.",
+              ".false.",
+              ".ge.",
+              ".gt.",
+              ".le.",
+              ".lt.",
+              ".ne.",
+              ".neqv.",
+              ".not.",
+              ".or.",
+              ".true."
+            ],
+            "Attributes": {
+              "Element": "LogicalOperator"
+            }
+          },
+          {
+            "Type": "Method",
+            "Words": [
+              "abs",
+              "achar",
+              "acos",
+              "adjustl",
+              "adjustr",
+              "aimag",
+              "aint",
+              "all",
+              "allocated",
+              "anint",
+              "any",
+              "asin",
+              "associated",
+              "atan",
+              "atan2",
+              "ceiling",
+              "char",
+              "cmplx",
+              "command_argument_count",
+              "conjg",
+              "cos",
+              "cosh",
+              "count",
+              "cpu_time",
+              "cshift",
+              "date_and_time",
+              "dble",
+              "dot_product",
+              "epsilon",
+              "exp",
+              "floor",
+              "get_command_argument",
+              "huge",
+              "iachar",
+              "ichar",
+              "index",
+              "int",
+              "kind",
+              "lbound",
+              "len",
+              "len_trim",
+              "log",
+              "log10",
+              "matmul",
+              "max",
+              "maxval",
+              "merge",
+              "min",
+              "minval",
+              "mod",
+              "modulo",
+              "nint",
+              "norm2",
+              "pack",
+              "present",
+              "product",
+              "random_number",
+              "random_seed",
+              "repeat",
+              "reshape",
+              "scan",
+              "selected_int_kind",
+              "selected_real_kind",
+              "shape",
+              "sign",
+              "sin",
+              "sinh",
+              "size",
+              "spread",
+              "sqrt",
+              "sum",
+              "system_clock",
+              "tan",
+              "tanh",
+              "tiny",
+              "transfer",
+              "transpose",
+              "trim",
+              "ubound",
+              "unpack",
+              "verify"
+            ],
+            "Attributes": {
+              "Element": "Method"
+            }
+          },
+          {
+            "Type": "Symbol",
+            "Words": [
+              "%",
+              "&",
+              "(",
+              ")",
+              "*",
+              "+",
+              ",",
+              "-",
+              ".",
+              "/",
+              ":",
+              ";",
+              "<",
+              "=",
+              ">",
+              "[",
+              "]"
+            ],
+            "Attributes": {
+              "Element": "Symbol"
+            }
+          }
+        ],
+        "Set": [
+          {
+            "Type": "Numbers",
+            "Symbols": ".0123456789",
+            "Attributes": {
+              "Element": "Number"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "MatchingPair": {
+    "Pairs": [
+      {
+        "OpenToken": "'",
+        "CloseToken": "'"
+      },
+      {
+        "OpenToken": "\"",
+        "CloseToken": "\""
+      },
+      {
+        "OpenToken": "(",
+        "CloseToken": ")"
+      },
+      {
+        "OpenToken": "[",
+        "CloseToken": "]"
+      }
+    ]
+  },
+  "CompletionProposal": {
+    "SkipRegion": [
+      {
+        "OpenToken": "'",
+        "CloseToken": "'",
+        "RegionType": "SingleLineString"
+      },
+      {
+        "OpenToken": "\"",
+        "CloseToken": "\"",
+        "RegionType": "SingleLineString"
+      },
+      {
+        "OpenToken": "!",
+        "RegionType": "SingleLine"
+      }
+    ]
+  }
+}

@@ -168,7 +168,7 @@ type
   end;
 
 const
-  cFileTypeHighlighters: array [0 .. 104] of TFileTypeHighlighter = (
+  cFileTypeHighlighters: array [0 .. 108] of TFileTypeHighlighter = (
     (Extensions: '.abap'; Highlighter: 'ABAP'),
     (Extensions: '.as'; Highlighter: 'ActionScript'),
     (Extensions: '.ads;.adb'; Highlighter: 'Ada'),
@@ -176,7 +176,8 @@ const
     (Extensions: '.ino'; Highlighter: 'Arduino'),
     (Extensions: '.asp'; Highlighter: 'ASP'),
     (Extensions: '.hc11;.asc'; Highlighter: 'Assembler - 68HC11'),
-    (Extensions: '.asm'; Highlighter: 'Assembler - 6502'),
+    (Extensions: '.a65'; Highlighter: 'Assembler - 6502'),
+    (Extensions: '.asm;.s;.nasm'; Highlighter: 'Assembler - x86'),
     (Extensions: '.ahk'; Highlighter: 'AutoHotkey'),
     (Extensions: '.au3'; Highlighter: 'AutoIt v3'),
     (Extensions: '.awk'; Highlighter: 'AWK'),
@@ -198,6 +199,7 @@ const
     (Extensions: '.dart'; Highlighter: 'Dart'),
     (Extensions: '.dfm;.fmx'; Highlighter: 'Delphi Form Module'),
     (Extensions: '.diff'; Highlighter: 'Diff'),
+    (Extensions: '.dockerfile'; Highlighter: 'Dockerfile'),
     (Extensions: '.dws'; Highlighter: 'DWScript'),
     (Extensions: '.e;.es'; Highlighter: 'Eiffel'),
     (Extensions: '.exs'; Highlighter: 'Elixir'),
@@ -205,7 +207,8 @@ const
     (Extensions: '.erl;.hrl'; Highlighter: 'Erlang'),
     (Extensions: '.ex;.exw;.edb'; Highlighter: 'Euphoria'),
     (Extensions: '.fs'; Highlighter: 'F#'),
-    (Extensions: '.pp'; Highlighter: 'Free Pascal'),
+    (Extensions: '.f90;.f95;.f03;.f08;.f;.for'; Highlighter: 'Fortran'),
+    (Extensions: '.pp;.lpr'; Highlighter: 'Free Pascal'),
     (Extensions: '.bi;.bas'; Highlighter: 'FreeBASIC'),
     (Extensions: '.nc;.gcode'; Highlighter: 'G-code'),
     (Extensions: '.gd'; Highlighter: 'GDScript'),
@@ -215,6 +218,7 @@ const
     (Extensions: '.gravity'; Highlighter: 'Gravity'),
     (Extensions: '.groovy;.gvy;.gy;.gsh'; Highlighter: 'Groovy'),
     (Extensions: '.hh;.hck;.hack'; Highlighter: 'Hack'),
+    (Extensions: '.hs'; Highlighter: 'Haskell'),
     (Extensions: '.html;.htm'; Highlighter: 'HTML with Scripts'),
     (Extensions: '.ini;.lng'; Highlighter: 'INI'),
     (Extensions: '.iss'; Highlighter: 'Inno Setup'),
@@ -237,7 +241,7 @@ const
     (Extensions: '.nim'; Highlighter: 'Nim'),
     (Extensions: '.nsi'; Highlighter: 'NSIS'),
     (Extensions: '.obs'; Highlighter: 'Objeck'),
-    (Extensions: '.pas;.dpr;.dpk;.lpr'; Highlighter: 'Object Pascal'),
+    (Extensions: '.pas;.dpr;.dpk'; Highlighter: 'Object Pascal'),
     (Extensions: '.mm'; Highlighter: 'Objective-C++'),
     (Extensions: '.m'; Highlighter: 'Objective-C'),
     (Extensions: '.ml'; Highlighter: 'OCaml'),
@@ -645,11 +649,22 @@ end;
 function TMainForm.HighlighterForFileName(const AFileName: string): string;
 var
   LExtension: string;
+  LFileName: string;
 begin
   LExtension := ExtractFileExt(AFileName).ToLower;
 
   if LExtension.IsEmpty then
+  begin
+    LFileName := ExtractFileName(AFileName).ToLower;
+
+    if LFileName = 'dockerfile' then
+      Exit('Dockerfile');
+
+    if LFileName = 'makefile' then
+      Exit('Makefile');
+
     Exit('');
+  end;
 
   for var LIndex := Low(cFileTypeHighlighters) to High(cFileTypeHighlighters) do
   if (';' + cFileTypeHighlighters[LIndex].Extensions + ';').Contains(';' + LExtension + ';') then
