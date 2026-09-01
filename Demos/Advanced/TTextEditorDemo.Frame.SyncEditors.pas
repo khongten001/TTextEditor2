@@ -98,14 +98,14 @@ begin
   var LText := '';
 
   if CheckBoxSyncVertical.Checked then
-    LText := Format('Line offset: %+d', [FTopLineOffset]);
+    LText := Format('Line offset: %d', [FTopLineOffset]);
 
   if CheckBoxSyncHorizontal.Checked then
   begin
     if LText <> '' then
       LText := LText + '   ';
 
-    LText := LText + Format('Horizontal offset: %+d px', [FHorizontalOffset]);
+    LText := LText + Format('Horizontal offset: %d px', [FHorizontalOffset]);
   end;
 
   LabelOffset.Caption := LText;
