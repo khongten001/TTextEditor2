@@ -37,8 +37,10 @@ type
     FTestMacroRecorder: TCustomEditorMacroRecorder;
 {$IFDEF TEXTEDITOR_LSP}
     FLanguageServers: TTextEditorLanguageServers;
-    procedure LanguageServerGotoLocation(const ASender: TObject; const ALocation: TTextEditorLanguageServerLocation);
+    procedure LanguageServerGotoLocation(const ASender: TObject; const AEditor: TCustomTextEditor;
+      const ALocation: TTextEditorLanguageServerLocation);
     procedure LanguageServerLog(const ASender: TObject; const AMessage: string);
+    procedure LanguageServerStateChange(const ASender: TObject; const AState: TTextEditorLanguageServerState);
     procedure TextEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure UpdateServerButtons;
 {$ENDIF}
@@ -58,6 +60,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    procedure DocumentSaved;
     procedure OpenDocument(const AFileName: string);
     procedure RunCaretNavigationTest;
     procedure RunClipboardRoundTripTest;
@@ -124,6 +127,7 @@ begin
   FLanguageServers := TTextEditorLanguageServers.Create(Self);
   FLanguageServers.OnGotoLocation := LanguageServerGotoLocation;
   FLanguageServers.OnLog := LanguageServerLog;
+  FLanguageServers.OnStateChange := LanguageServerStateChange;
   FLanguageServers.DetectInstalledServers;
 
   TextEditor.OnKeyDown := TextEditorKeyDown;
@@ -141,9 +145,18 @@ begin
   Result := FLanguageServers.InstanceForEditor(TextEditor);
 end;
 
-procedure TFrameTextEditor.UpdateServerButtons;
+procedure TFrameTextEditor.DocumentSaved;
 begin
-  ButtonServerStart.Enabled := ActiveLanguageServer = nil;
+  FLanguageServers.DocumentSaved(TextEditor);
+end;
+
+procedure TFrameTextEditor.UpdateServerButtons;
+var
+  LInstance: TTextEditorLanguageServer;
+begin
+  LInstance := ActiveLanguageServer;
+
+  ButtonServerStart.Enabled := not Assigned(LInstance) or (LInstance.State = lssStopped);
   ButtonServerStop.Enabled := not ButtonServerStart.Enabled;
 end;
 
@@ -176,12 +189,15 @@ end;
 procedure TFrameTextEditor.LanguageServerLog(const ASender: TObject; const AMessage: string);
 begin
   MemoServerLog.Lines.Add(AMessage);
-
-  if AMessage.Contains('Server exited') then
-    UpdateServerButtons;
 end;
 
-procedure TFrameTextEditor.LanguageServerGotoLocation(const ASender: TObject; const ALocation: TTextEditorLanguageServerLocation);
+procedure TFrameTextEditor.LanguageServerStateChange(const ASender: TObject; const AState: TTextEditorLanguageServerState);
+begin
+  UpdateServerButtons;
+end;
+
+procedure TFrameTextEditor.LanguageServerGotoLocation(const ASender: TObject; const AEditor: TCustomTextEditor;
+  const ALocation: TTextEditorLanguageServerLocation);
 begin
   if SameText(ALocation.FileName, FFileName) then
     Exit;
@@ -211,7 +227,7 @@ begin
     var LInstance := ActiveLanguageServer;
 
     if Assigned(LInstance) then
-      LInstance.GotoDefinition;
+      LInstance.GotoDefinition(TextEditor);
   end;
 end;
 
@@ -227,6 +243,10 @@ end;
 destructor TFrameTextEditor.Destroy;
 begin
   inherited Destroy;
+end;
+
+procedure TFrameTextEditor.DocumentSaved;
+begin
 end;
 
 procedure TFrameTextEditor.OpenDocument(const AFileName: string);

@@ -1,9 +1,12 @@
-unit TextEditor.LanguageServer.Manager;
+﻿unit TextEditor.LanguageServer.Manager;
+
+{ Maps editors to language servers. One server process is shared by every attached editor whose file matches the same
+  definition and resolves to the same root folder; it is stopped once it has had no documents for IdleTimeout milliseconds. }
 
 interface
 
 uses
-  System.Classes, System.Generics.Collections, System.SysUtils, TextEditor, TextEditor.LanguageServer;
+  System.Classes, System.Diagnostics, System.Generics.Collections, System.SysUtils, Vcl.ExtCtrls, TextEditor, TextEditor.LanguageServer;
 
 type
   TTextEditorLanguageServerRootPathKind = (rpDocumentFolder, rpFixedFolder, rpMarkerFile);
@@ -35,6 +38,7 @@ type
     property InitializationOptions: string read FInitializationOptions write FInitializationOptions;
     property LanguageId: string read FLanguageId write FLanguageId;
     property Name: string read FName write FName;
+    { For rpMarkerFile a semicolon separated list of file patterns searched upwards from the document folder }
     property RootPath: string read FRootPath write FRootPath;
     property RootPathKind: TTextEditorLanguageServerRootPathKind read FRootPathKind write FRootPathKind default rpDocumentFolder;
     property SettingsFallback: TTextEditorLanguageServerSettingsFallback read FSettingsFallback write FSettingsFallback default sfNone;
@@ -52,28 +56,62 @@ type
 
   TTextEditorLanguageServers = class(TComponent)
   strict private type
-    TAttachment = record
-      Instance: TTextEditorLanguageServer;
-      DefinitionId: Integer;
-      DefinitionName: string;
+    TServerInstance = class(TObject)
+    strict private
+      FConfiguration: string;
+      FDefinitionId: Integer;
+      FDefinitionName: string;
+      FIdleStopwatch: TStopwatch;
+      FRetired: Boolean;
+      FRootPath: string;
+      FServer: TTextEditorLanguageServer;
+    public
+      destructor Destroy; override;
+      function IdleMilliseconds: Int64;
+      procedure MarkBusy;
+      procedure MarkIdle;
+      property Configuration: string read FConfiguration write FConfiguration;
+      property DefinitionId: Integer read FDefinitionId write FDefinitionId;
+      property DefinitionName: string read FDefinitionName write FDefinitionName;
+      property Retired: Boolean read FRetired write FRetired;
+      property RootPath: string read FRootPath write FRootPath;
+      property Server: TTextEditorLanguageServer read FServer write FServer;
     end;
   strict private
-    FAttachments: TDictionary<TCustomTextEditor, TAttachment>;
+    FAutoRestart: Boolean;
+    FCleanupTimer: TTimer;
     FCompletionTriggerEnabled: Boolean;
+    FEditors: TDictionary<TCustomTextEditor, TServerInstance>;
     FHoverDelay: Integer;
     FHoverEnabled: Boolean;
+    FIdleTimeout: Integer;
+    FInstances: TObjectList<TServerInstance>;
     FLogTraffic: Boolean;
+    FOnDiagnostics: TTextEditorLanguageServerDiagnosticsEvent;
     FOnGotoLocation: TTextEditorLanguageServerLocationEvent;
     FOnLog: TTextEditorLanguageServerLogEvent;
+    FOnStateChange: TTextEditorLanguageServerStateEvent;
     FServers: TTextEditorLanguageServerDefinitions;
     FSignatureHelpEnabled: Boolean;
     FSyncTimeout: Integer;
     function BuildConfiguration(const ADefinition: TTextEditorLanguageServerDefinition; const AMarkerFileName: string): string;
     function CreateDelphiLspFallbackSettings(const ADefinition: TTextEditorLanguageServerDefinition; const AFileName: string): string;
-    function ResolveConfiguration(const ADefinition: TTextEditorLanguageServerDefinition; const AFileName: string; out ARootPath: string): string;
-    function ResolveRootPath(const ADefinition: TTextEditorLanguageServerDefinition; const AFileName: string; out AMarkerFileName: string): string;
-    procedure InstanceGotoLocation(const ASender: TObject; const ALocation: TTextEditorLanguageServerLocation);
+    function CreateInstance(const ADefinition: TTextEditorLanguageServerDefinition; const ARootPath: string;
+      const AConfiguration: string): TServerInstance;
+    function FindInstance(const ADefinitionId: Integer; const ARootPath: string): TServerInstance;
+    function InstanceForServer(const AServer: TObject): TServerInstance;
+    function ResolveConfiguration(const ADefinition: TTextEditorLanguageServerDefinition; const AFileName: string;
+      out ARootPath: string): string;
+    function ResolveRootPath(const ADefinition: TTextEditorLanguageServerDefinition; const AFileName: string;
+      out AMarkerFileName: string): string;
+    procedure CleanupTimerTimer(ASender: TObject);
+    procedure InstanceDiagnostics(const ASender: TObject; const AEditor: TCustomTextEditor;
+      const ADiagnostics: TArray<TTextEditorLanguageServerDiagnostic>);
+    procedure InstanceGotoLocation(const ASender: TObject; const AEditor: TCustomTextEditor;
+      const ALocation: TTextEditorLanguageServerLocation);
     procedure InstanceLog(const ASender: TObject; const AMessage: string);
+    procedure InstanceStateChange(const ASender: TObject; const AState: TTextEditorLanguageServerState);
+    procedure Retire(const AInstance: TServerInstance);
     procedure SetServers(const AValue: TTextEditorLanguageServerDefinitions);
   protected
     procedure Notification(AComponent: TComponent; AOperation: TOperation); override;
@@ -85,14 +123,20 @@ type
     function InstanceForEditor(const AEditor: TCustomTextEditor): TTextEditorLanguageServer;
     procedure Detach(const AEditor: TCustomTextEditor);
     procedure DetectInstalledServers;
+    procedure DocumentSaved(const AEditor: TCustomTextEditor);
     procedure StopAll;
   published
+    property AutoRestart: Boolean read FAutoRestart write FAutoRestart default False;
     property CompletionTriggerEnabled: Boolean read FCompletionTriggerEnabled write FCompletionTriggerEnabled default True;
     property HoverDelay: Integer read FHoverDelay write FHoverDelay default 600;
     property HoverEnabled: Boolean read FHoverEnabled write FHoverEnabled default True;
+    { Milliseconds a server is kept alive without documents; 0 stops it at once, a negative value keeps it running }
+    property IdleTimeout: Integer read FIdleTimeout write FIdleTimeout default 60000;
     property LogTraffic: Boolean read FLogTraffic write FLogTraffic default False;
+    property OnDiagnostics: TTextEditorLanguageServerDiagnosticsEvent read FOnDiagnostics write FOnDiagnostics;
     property OnGotoLocation: TTextEditorLanguageServerLocationEvent read FOnGotoLocation write FOnGotoLocation;
     property OnLog: TTextEditorLanguageServerLogEvent read FOnLog write FOnLog;
+    property OnStateChange: TTextEditorLanguageServerStateEvent read FOnStateChange write FOnStateChange;
     property Servers: TTextEditorLanguageServerDefinitions read FServers write SetServers;
     property SignatureHelpEnabled: Boolean read FSignatureHelpEnabled write FSignatureHelpEnabled default True;
     property SyncTimeout: Integer read FSyncTimeout write FSyncTimeout default 1000;
@@ -102,6 +146,9 @@ implementation
 
 uses
   System.Hash, System.IOUtils;
+
+const
+  CLEANUP_INTERVAL_MS = 1000;
 
 { TTextEditorLanguageServerDefinition }
 
@@ -180,6 +227,30 @@ begin
   Result := nil;
 end;
 
+{ TTextEditorLanguageServers.TServerInstance }
+
+destructor TTextEditorLanguageServers.TServerInstance.Destroy;
+begin
+  FServer.Free;
+
+  inherited Destroy;
+end;
+
+function TTextEditorLanguageServers.TServerInstance.IdleMilliseconds: Int64;
+begin
+  Result := if FIdleStopwatch.IsRunning then FIdleStopwatch.ElapsedMilliseconds else -1;
+end;
+
+procedure TTextEditorLanguageServers.TServerInstance.MarkBusy;
+begin
+  FIdleStopwatch.Reset;
+end;
+
+procedure TTextEditorLanguageServers.TServerInstance.MarkIdle;
+begin
+  FIdleStopwatch := TStopwatch.StartNew;
+end;
+
 { TTextEditorLanguageServers }
 
 constructor TTextEditorLanguageServers.Create(AOwner: TComponent);
@@ -187,11 +258,18 @@ begin
   inherited Create(AOwner);
 
   FServers := TTextEditorLanguageServerDefinitions.Create(Self, TTextEditorLanguageServerDefinition);
-  FAttachments := TDictionary<TCustomTextEditor, TAttachment>.Create;
+  FEditors := TDictionary<TCustomTextEditor, TServerInstance>.Create;
+  FInstances := TObjectList<TServerInstance>.Create(True);
+
+  FCleanupTimer := TTimer.Create(Self);
+  FCleanupTimer.Enabled := False;
+  FCleanupTimer.Interval := CLEANUP_INTERVAL_MS;
+  FCleanupTimer.OnTimer := CleanupTimerTimer;
 
   FCompletionTriggerEnabled := True;
   FHoverDelay := 600;
   FHoverEnabled := True;
+  FIdleTimeout := 60000;
   FSignatureHelpEnabled := True;
   FSyncTimeout := 1000;
 end;
@@ -200,7 +278,8 @@ destructor TTextEditorLanguageServers.Destroy;
 begin
   StopAll;
 
-  FAttachments.Free;
+  FInstances.Free;
+  FEditors.Free;
   FServers.Free;
 
   inherited Destroy;
@@ -209,6 +288,14 @@ end;
 procedure TTextEditorLanguageServers.SetServers(const AValue: TTextEditorLanguageServerDefinitions);
 begin
   FServers.Assign(AValue);
+end;
+
+procedure TTextEditorLanguageServers.Notification(AComponent: TComponent; AOperation: TOperation);
+begin
+  inherited Notification(AComponent, AOperation);
+
+  if (AOperation = opRemove) and (AComponent is TCustomTextEditor) then
+    Detach(TCustomTextEditor(AComponent));
 end;
 
 function TTextEditorLanguageServers.DefinitionForFileName(const AFileName: string): TTextEditorLanguageServerDefinition;
@@ -222,16 +309,38 @@ end;
 
 function TTextEditorLanguageServers.InstanceForEditor(const AEditor: TCustomTextEditor): TTextEditorLanguageServer;
 var
-  LAttachment: TAttachment;
+  LInstance: TServerInstance;
 begin
-  Result := if FAttachments.TryGetValue(AEditor, LAttachment) then LAttachment.Instance else nil;
+  Result := if FEditors.TryGetValue(AEditor, LInstance) then LInstance.Server else nil;
+end;
+
+function TTextEditorLanguageServers.InstanceForServer(const AServer: TObject): TServerInstance;
+var
+  LInstance: TServerInstance;
+begin
+  for LInstance in FInstances do
+  if LInstance.Server = AServer then
+    Exit(LInstance);
+
+  Result := nil;
+end;
+
+function TTextEditorLanguageServers.FindInstance(const ADefinitionId: Integer; const ARootPath: string): TServerInstance;
+var
+  LInstance: TServerInstance;
+begin
+  for LInstance in FInstances do
+  if not LInstance.Retired and (LInstance.DefinitionId = ADefinitionId) and SameText(LInstance.RootPath, ARootPath) then
+    Exit(LInstance);
+
+  Result := nil;
 end;
 
 function TTextEditorLanguageServers.ResolveRootPath(const ADefinition: TTextEditorLanguageServerDefinition;
   const AFileName: string; out AMarkerFileName: string): string;
 var
-  LDirectory, LParentDirectory: string;
-  LFiles: TArray<string>;
+  LDirectory, LParentDirectory, LPattern: string;
+  LPatterns, LFiles: TArray<string>;
 begin
   AMarkerFileName := '';
   Result := ExtractFileDir(AFileName);
@@ -242,16 +351,23 @@ begin
         Result := ADefinition.RootPath;
     rpMarkerFile:
       begin
+        LPatterns := ADefinition.RootPath.Split([';']);
         LDirectory := ExtractFileDir(AFileName);
 
         while not LDirectory.IsEmpty do
         begin
-          LFiles := TDirectory.GetFiles(LDirectory, ADefinition.RootPath);
-
-          if Length(LFiles) > 0 then
+          for LPattern in LPatterns do
           begin
-            AMarkerFileName := LFiles[0];
-            Exit(LDirectory);
+            if LPattern.Trim.IsEmpty then
+              Continue;
+
+            LFiles := TDirectory.GetFiles(LDirectory, LPattern.Trim);
+
+            if Length(LFiles) > 0 then
+            begin
+              AMarkerFileName := LFiles[0];
+              Exit(LDirectory);
+            end;
           end;
 
           LParentDirectory := ExtractFileDir(LDirectory);
@@ -368,10 +484,46 @@ begin
   Result := BuildConfiguration(ADefinition, LMarkerFileName);
 end;
 
+function TTextEditorLanguageServers.CreateInstance(const ADefinition: TTextEditorLanguageServerDefinition; const ARootPath: string;
+  const AConfiguration: string): TServerInstance;
+var
+  LServer: TTextEditorLanguageServer;
+begin
+  LServer := TTextEditorLanguageServer.Create(nil);
+  LServer.ServerCommandLine := ADefinition.CommandLine;
+  LServer.RootPath := ARootPath;
+  LServer.ServerDirectory := ARootPath;
+  LServer.InitializationOptions := ADefinition.InitializationOptions;
+  LServer.Configuration := AConfiguration;
+  LServer.AutoRestart := FAutoRestart;
+  LServer.CompletionTriggerEnabled := FCompletionTriggerEnabled;
+  LServer.HoverDelay := FHoverDelay;
+  LServer.HoverEnabled := FHoverEnabled;
+  LServer.LogTraffic := FLogTraffic;
+  LServer.SignatureHelpEnabled := FSignatureHelpEnabled;
+  LServer.SyncTimeout := FSyncTimeout;
+  LServer.OnDiagnostics := InstanceDiagnostics;
+  LServer.OnGotoLocation := InstanceGotoLocation;
+  LServer.OnLog := InstanceLog;
+  LServer.OnStateChange := InstanceStateChange;
+
+  Result := TServerInstance.Create;
+  Result.Server := LServer;
+  Result.DefinitionId := ADefinition.ID;
+  Result.DefinitionName := ADefinition.Name;
+  Result.RootPath := ARootPath;
+  Result.Configuration := AConfiguration;
+
+  FInstances.Add(Result);
+  FCleanupTimer.Enabled := True;
+
+  LServer.Start;
+end;
+
 function TTextEditorLanguageServers.Attach(const AEditor: TCustomTextEditor; const AFileName: string): TTextEditorLanguageServer;
 var
   LDefinition: TTextEditorLanguageServerDefinition;
-  LAttachment: TAttachment;
+  LInstance, LCurrentInstance: TServerInstance;
   LConfiguration, LRootPath: string;
 begin
   LDefinition := DefinitionForFileName(AFileName);
@@ -382,102 +534,133 @@ begin
     Exit(nil);
   end;
 
-  if FAttachments.TryGetValue(AEditor, LAttachment) and (LAttachment.DefinitionId = LDefinition.ID) then
+  LConfiguration := ResolveConfiguration(LDefinition, AFileName, LRootPath);
+  LInstance := FindInstance(LDefinition.ID, LRootPath);
+
+  if FEditors.TryGetValue(AEditor, LCurrentInstance) and (LCurrentInstance <> LInstance) then
+    Detach(AEditor);
+
+  if not Assigned(LInstance) then
+    LInstance := CreateInstance(LDefinition, LRootPath, LConfiguration)
+  else
   begin
-    LConfiguration := ResolveConfiguration(LDefinition, AFileName, LRootPath);
+    if LInstance.Server.State = lssStopped then
+      LInstance.Server.Start;
 
-    if LConfiguration <> LAttachment.Instance.Configuration then
+    if LConfiguration <> LInstance.Configuration then
     begin
-      LAttachment.Instance.Configuration := LConfiguration;
-      LAttachment.Instance.SendConfiguration(LConfiguration);
+      LInstance.Configuration := LConfiguration;
+      LInstance.Server.Configuration := LConfiguration;
+      LInstance.Server.SendConfiguration(LConfiguration);
     end;
-
-    LAttachment.Instance.OpenDocument(AFileName, LDefinition.LanguageId);
-    Exit(LAttachment.Instance);
   end;
 
-  Detach(AEditor);
+  LInstance.MarkBusy;
+  LInstance.Server.OpenDocument(AEditor, AFileName, LDefinition.LanguageId);
 
-  LConfiguration := ResolveConfiguration(LDefinition, AFileName, LRootPath);
-
-  Result := TTextEditorLanguageServer.Create(Self);
-  Result.Editor := AEditor;
-  Result.ServerCommandLine := LDefinition.CommandLine;
-  Result.RootPath := LRootPath;
-  Result.ServerDirectory := LRootPath;
-  Result.InitializationOptions := LDefinition.InitializationOptions;
-  Result.Configuration := LConfiguration;
-  Result.CompletionTriggerEnabled := FCompletionTriggerEnabled;
-  Result.HoverDelay := FHoverDelay;
-  Result.HoverEnabled := FHoverEnabled;
-  Result.LogTraffic := FLogTraffic;
-  Result.SignatureHelpEnabled := FSignatureHelpEnabled;
-  Result.SyncTimeout := FSyncTimeout;
-  Result.OnGotoLocation := InstanceGotoLocation;
-  Result.OnLog := InstanceLog;
-
-  LAttachment.Instance := Result;
-  LAttachment.DefinitionId := LDefinition.ID;
-  LAttachment.DefinitionName := LDefinition.Name;
-  FAttachments.Add(AEditor, LAttachment);
-
+  FEditors.AddOrSetValue(AEditor, LInstance);
   AEditor.FreeNotification(Self);
 
-  Result.OpenDocument(AFileName, LDefinition.LanguageId);
-  Result.Start;
+  Result := LInstance.Server;
 end;
 
 procedure TTextEditorLanguageServers.Detach(const AEditor: TCustomTextEditor);
 var
-  LAttachment: TAttachment;
+  LInstance: TServerInstance;
 begin
-  if not FAttachments.TryGetValue(AEditor, LAttachment) then
+  if not FEditors.TryGetValue(AEditor, LInstance) then
     Exit;
 
-  FAttachments.Remove(AEditor);
-  LAttachment.Instance.Free;
+  FEditors.Remove(AEditor);
+  LInstance.Server.CloseDocument(AEditor);
+
+  if LInstance.Server.DocumentCount = 0 then
+  begin
+    if FIdleTimeout = 0 then
+      Retire(LInstance)
+    else
+      LInstance.MarkIdle;
+  end;
+end;
+
+procedure TTextEditorLanguageServers.DocumentSaved(const AEditor: TCustomTextEditor);
+var
+  LInstance: TServerInstance;
+begin
+  if FEditors.TryGetValue(AEditor, LInstance) then
+    LInstance.Server.DocumentSaved(AEditor);
+end;
+
+procedure TTextEditorLanguageServers.Retire(const AInstance: TServerInstance);
+begin
+  AInstance.Retired := True;
+  AInstance.Server.Stop;
+
+  FCleanupTimer.Enabled := True;
+end;
+
+procedure TTextEditorLanguageServers.CleanupTimerTimer(ASender: TObject);
+var
+  LIndex: Integer;
+  LInstance: TServerInstance;
+begin
+  for LIndex := FInstances.Count - 1 downto 0 do
+  begin
+    LInstance := FInstances[LIndex];
+
+    if LInstance.Retired then
+    begin
+      if LInstance.Server.State = lssStopped then
+        FInstances.Delete(LIndex);
+    end
+    else
+    if (LInstance.Server.DocumentCount = 0) and (FIdleTimeout >= 0) and (LInstance.IdleMilliseconds >= FIdleTimeout) then
+      Retire(LInstance);
+  end;
+
+  FCleanupTimer.Enabled := FInstances.Count > 0;
 end;
 
 procedure TTextEditorLanguageServers.StopAll;
-var
-  LAttachment: TAttachment;
 begin
-  for LAttachment in FAttachments.Values do
-    LAttachment.Instance.Free;
-
-  FAttachments.Clear;
+  FCleanupTimer.Enabled := False;
+  FEditors.Clear;
+  FInstances.Clear;
 end;
 
-procedure TTextEditorLanguageServers.Notification(AComponent: TComponent; AOperation: TOperation);
+procedure TTextEditorLanguageServers.InstanceDiagnostics(const ASender: TObject; const AEditor: TCustomTextEditor;
+  const ADiagnostics: TArray<TTextEditorLanguageServerDiagnostic>);
 begin
-  inherited Notification(AComponent, AOperation);
+  if Assigned(FOnDiagnostics) then
+    FOnDiagnostics(ASender, AEditor, ADiagnostics);
+end;
 
-  if (AOperation = opRemove) and (AComponent is TCustomTextEditor) then
-    Detach(TCustomTextEditor(AComponent));
+procedure TTextEditorLanguageServers.InstanceGotoLocation(const ASender: TObject; const AEditor: TCustomTextEditor;
+  const ALocation: TTextEditorLanguageServerLocation);
+begin
+  if Assigned(FOnGotoLocation) then
+    FOnGotoLocation(ASender, AEditor, ALocation);
 end;
 
 procedure TTextEditorLanguageServers.InstanceLog(const ASender: TObject; const AMessage: string);
 var
-  LAttachment: TAttachment;
+  LInstance: TServerInstance;
 begin
   if not Assigned(FOnLog) then
     Exit;
 
-  for LAttachment in FAttachments.Values do
-  if LAttachment.Instance = ASender then
-  begin
-    FOnLog(ASender, '[' + LAttachment.DefinitionName + '] ' + AMessage);
-    Exit;
-  end;
+  LInstance := InstanceForServer(ASender);
 
-  FOnLog(ASender, AMessage);
+  if Assigned(LInstance) then
+    FOnLog(ASender, '[' + LInstance.DefinitionName + '] ' + AMessage)
+  else
+    FOnLog(ASender, AMessage);
 end;
 
-procedure TTextEditorLanguageServers.InstanceGotoLocation(const ASender: TObject;
-  const ALocation: TTextEditorLanguageServerLocation);
+procedure TTextEditorLanguageServers.InstanceStateChange(const ASender: TObject; const AState: TTextEditorLanguageServerState);
 begin
-  if Assigned(FOnGotoLocation) then
-    FOnGotoLocation(ASender, ALocation);
+  if Assigned(FOnStateChange) then
+    FOnStateChange(ASender, AState);
 end;
 
 procedure TTextEditorLanguageServers.DetectInstalledServers;
@@ -490,7 +673,7 @@ procedure TTextEditorLanguageServers.DetectInstalledServers;
       Result := GetEnvironmentVariable('ProgramFiles');
   end;
 
-  function AddDefinition(const AName, ACommandLine, AExtensions, ALanguageId: string): TTextEditorLanguageServerDefinition;
+  function AddDefinition(const AName, ACommandLine, AExtensions, ALanguageId, AMarkerFiles: string): TTextEditorLanguageServerDefinition;
   begin
     Result := FServers.FindByName(AName);
 
@@ -503,6 +686,8 @@ procedure TTextEditorLanguageServers.DetectInstalledServers;
     Result.CommandLine := ACommandLine;
     Result.Extensions := AExtensions;
     Result.LanguageId := ALanguageId;
+    Result.RootPathKind := rpMarkerFile;
+    Result.RootPath := AMarkerFiles;
   end;
 
   function NodeCommandLine(const AScriptFileName: string): string;
@@ -536,9 +721,7 @@ begin
 
   if not LCommandLine.IsEmpty then
   begin
-    LDefinition := AddDefinition('DelphiLSP', LCommandLine, '.pas;.pp;.dpr;.lpr;.inc', 'pascal');
-    LDefinition.RootPathKind := rpMarkerFile;
-    LDefinition.RootPath := '*.delphilsp.json';
+    LDefinition := AddDefinition('DelphiLSP', LCommandLine, '.pas;.dpr;.dpk;.inc', 'pascal', '*.delphilsp.json');
     LDefinition.Configuration := '{"settings":{"settingsFile":"%MARKERFILEURI%"}}';
     LDefinition.SettingsFallback := sfDelphiLsp;
   end;
@@ -547,21 +730,21 @@ begin
 
   if FileExists(LFileName) then
   begin
-    AddDefinition('clangd (C)', '"' + LFileName + '"', '.c;.h', 'c');
-    AddDefinition('clangd (C++)', '"' + LFileName + '"', '.cpp;.cc;.cxx;.hpp', 'cpp');
+    AddDefinition('clangd (C)', '"' + LFileName + '"', '.c;.h', 'c', 'compile_commands.json;compile_flags.txt;.clangd');
+    AddDefinition('clangd (C++)', '"' + LFileName + '"', '.cpp;.cc;.cxx;.hpp', 'cpp', 'compile_commands.json;compile_flags.txt;.clangd');
   end;
 
   LCommandLine := NodeCommandLine('pyright\langserver.index.js');
 
   if not LCommandLine.IsEmpty then
-    AddDefinition('Pyright', LCommandLine, '.py;.pyi', 'python');
+    AddDefinition('Pyright', LCommandLine, '.py;.pyi', 'python', 'pyrightconfig.json;pyproject.toml');
 
   LCommandLine := NodeCommandLine('typescript-language-server\lib\cli.mjs');
 
   if not LCommandLine.IsEmpty then
   begin
-    AddDefinition('TypeScript', LCommandLine, '.ts;.tsx', 'typescript');
-    AddDefinition('JavaScript', LCommandLine, '.js;.jsx;.mjs', 'javascript');
+    AddDefinition('TypeScript', LCommandLine, '.ts;.tsx', 'typescript', 'tsconfig.json;jsconfig.json;package.json');
+    AddDefinition('JavaScript', LCommandLine, '.js;.jsx;.mjs', 'javascript', 'tsconfig.json;jsconfig.json;package.json');
   end;
 end;
 

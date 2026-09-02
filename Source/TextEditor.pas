@@ -350,8 +350,10 @@ type
     FColors: TTextEditorColors;
     FCompareLineNumberOffsetCache: array of Integer;
     FCompletionProposal: TTextEditorCompletionProposal;
+    FCompletionProposalExecuteHandlers: TList<TOnCompletionProposalExecute>;
     FCompletionProposalPopupWindow: TTextEditorCompletionProposalPopupWindow;
     FCompletionProposalTimer: TTextEditorTimer;
+    FCustomTokenAttributeHandlers: TList<TTextEditorCustomTokenAttributeEvent>;
     FDoubleClickTime: Cardinal;
     FEditorMode: TTextEditorMode;
     FEvents: TTextEditorEvents;
@@ -869,6 +871,8 @@ type
     procedure AddCaret(const AViewPosition: TTextEditorViewPosition);
     procedure AddCaretBookmark;
     procedure AddChangeNotification(const AEvent: TNotifyEvent);
+    procedure AddCompletionProposalExecuteHandler(const AHandler: TOnCompletionProposalExecute);
+    procedure AddCustomTokenAttributeHandler(const AHandler: TTextEditorCustomTokenAttributeEvent);
     procedure AddKeyCommand(const ACommand: TTextEditorCommand; const AShift: TShiftState; const AKey: Word; const ASecondaryShift: TShiftState = []; const ASecondaryKey: Word = 0);
     procedure AddKeyDownHandler(AHandler: TKeyEvent);
     procedure AddKeyPressHandler(AHandler: TTextEditorKeyPressWEvent);
@@ -960,6 +964,8 @@ type
     procedure RegisterCommandHandler(const AHookedCommandEvent: TTextEditorHookedCommandEvent; const AHandlerData: Pointer);
     procedure RemoveChainedEditor;
     procedure RemoveChangeNotification(const AEvent: TNotifyEvent);
+    procedure RemoveCompletionProposalExecuteHandler(const AHandler: TOnCompletionProposalExecute);
+    procedure RemoveCustomTokenAttributeHandler(const AHandler: TTextEditorCustomTokenAttributeEvent);
     procedure RemoveKeyDownHandler(AHandler: TKeyEvent);
     procedure RemoveKeyPressHandler(AHandler: TTextEditorKeyPressWEvent);
     procedure RemoveKeyUpHandler(AHandler: TKeyEvent);
@@ -1716,6 +1722,8 @@ begin
 
   FBorder.Free;
   FChangeNotifications.Free;
+  FCompletionProposalExecuteHandlers.Free;
+  FCustomTokenAttributeHandlers.Free;
 
   ClearCodeFolding;
 
@@ -11964,6 +11972,36 @@ begin
     FChangeNotifications.Remove(AEvent);
 end;
 
+procedure TCustomTextEditor.AddCompletionProposalExecuteHandler(const AHandler: TOnCompletionProposalExecute);
+begin
+  if not Assigned(FCompletionProposalExecuteHandlers) then
+    FCompletionProposalExecuteHandlers := TList<TOnCompletionProposalExecute>.Create;
+
+  if not FCompletionProposalExecuteHandlers.Contains(AHandler) then
+    FCompletionProposalExecuteHandlers.Add(AHandler);
+end;
+
+procedure TCustomTextEditor.RemoveCompletionProposalExecuteHandler(const AHandler: TOnCompletionProposalExecute);
+begin
+  if Assigned(FCompletionProposalExecuteHandlers) then
+    FCompletionProposalExecuteHandlers.Remove(AHandler);
+end;
+
+procedure TCustomTextEditor.AddCustomTokenAttributeHandler(const AHandler: TTextEditorCustomTokenAttributeEvent);
+begin
+  if not Assigned(FCustomTokenAttributeHandlers) then
+    FCustomTokenAttributeHandlers := TList<TTextEditorCustomTokenAttributeEvent>.Create;
+
+  if not FCustomTokenAttributeHandlers.Contains(AHandler) then
+    FCustomTokenAttributeHandlers.Add(AHandler);
+end;
+
+procedure TCustomTextEditor.RemoveCustomTokenAttributeHandler(const AHandler: TTextEditorCustomTokenAttributeEvent);
+begin
+  if Assigned(FCustomTokenAttributeHandlers) then
+    FCustomTokenAttributeHandlers.Remove(AHandler);
+end;
+
 procedure TCustomTextEditor.DoCopyToClipboard(const AText: string);
 var
   LHTML: string;
@@ -12046,6 +12084,10 @@ begin
 
     if Assigned(FEvents.OnCompletionProposalExecute) then
       FEvents.OnCompletionProposalExecute(Self, LParams);
+
+    if Assigned(FCompletionProposalExecuteHandlers) then
+    for var LIndex := FCompletionProposalExecuteHandlers.Count - 1 downto 0 do
+      FCompletionProposalExecuteHandlers[LIndex](Self, LParams);
 
     ShowDescription := LParams.Options.ShowDescription;
     CodeInsight := LParams.Options.CodeInsight;
@@ -17699,6 +17741,11 @@ var
 
         if Assigned(FEvents.OnCustomTokenAttribute) then
           FEvents.OnCustomTokenAttribute(Self, LTokenText, LCurrentLine, LTokenPosition, LForegroundColor, LBackgroundColor, LFontStyles, LUnderline, LUnderlineColor);
+
+        if Assigned(FCustomTokenAttributeHandlers) then
+        for var LIndex := FCustomTokenAttributeHandlers.Count - 1 downto 0 do
+          FCustomTokenAttributeHandlers[LIndex](Self, LTokenText, LCurrentLine, LTokenPosition, LForegroundColor, LBackgroundColor,
+            LFontStyles, LUnderline, LUnderlineColor);
 
         if FMatchingPairs.Active and not FSyncEdit.Visible and (FMatchingPair.Current <> trNotFound) and
           ((LCurrentLine = FMatchingPair.CurrentMatch.OpenTokenPos.Line) and (LTokenPosition = FMatchingPair.CurrentMatch.OpenTokenPos.Char - 1) or

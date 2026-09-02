@@ -584,6 +584,8 @@ begin
     FFileName := SaveDialog.FileName;
 
     FFrameTextEditor.TextEditor.SaveToFile(FFileName);
+    FFrameTextEditor.OpenDocument(FFileName);
+    FFrameTextEditor.DocumentSaved;
 
     UpdateCaption;
     UpdateModifiedState;
@@ -597,6 +599,7 @@ begin
   else
   begin
     FFrameTextEditor.TextEditor.SaveToFile(FFileName);
+    FFrameTextEditor.DocumentSaved;
 
     UpdateModifiedState;
   end;
