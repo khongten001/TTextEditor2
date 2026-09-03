@@ -13,7 +13,7 @@
       "CodeFoldingBackground": "clWhite",
       "CodeFoldingCollapsedLine": "clGray",
       "CodeFoldingFoldingLine": "clGray",
-      "CodeFoldingFoldingLineHighlight": "clGray",
+      "CodeFoldingFoldingLineHighlight": "clBlack",
       "CodeFoldingHintBackground": "clWhite",
       "CodeFoldingHintBorder": "clGray",
       "CodeFoldingHintIndicatorBackground": "clWhite",
