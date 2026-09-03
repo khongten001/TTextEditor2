@@ -3,7 +3,7 @@
     "Sample": [
       "Windows Registry Editor Version 5.00\r\n",
       "\r\n",
-      "[HKEY_CURRENT_USER\Software\Sample]\r\n",
+      "[HKEY_CURRENT_USER\\Software\\Sample]\r\n",
       "\"Sample\"=dword:00000001"
     ],
     "MainRules": {

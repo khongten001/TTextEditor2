@@ -3,7 +3,7 @@
 interface
 
 uses
-  System.Classes, FMX.TextEditor, FMX.TextEditor.JSONDataObjects;
+  System.Classes, System.JSON, FMX.TextEditor;
 
 type
   TTextEditorHighlighterExportJSON = class(TObject)
@@ -18,7 +18,7 @@ type
 implementation
 
 uses
-  System.SysUtils, System.TypInfo, System.UIConsts, System.UITypes, FMX.Graphics, FMX.TextEditor.Utils;
+  System.SysUtils, System.TypInfo, System.UIConsts, System.UITypes, FMX.Graphics, FMX.TextEditor.JSON.Helper, FMX.TextEditor.Utils;
 
 type
   TPropertyArray = array of PPropInfo;
@@ -37,13 +37,13 @@ var
   LJSONObject: TJSONObject;
   LStringList: TStringList;
 begin
-  LJSONObject := TJSONObject.Parse(THEME_FILE_FORMAT) as TJSONObject;
+  LJSONObject := TJSONObject.ParseJSONValue(THEME_FILE_FORMAT) as TJSONObject;
   try
-    ExportColorTheme(LJSONObject['Theme']);
+    ExportColorTheme(LJSONObject.ValueObject['Theme']);
 
     LStringList := TStringList.Create;
     try
-      LStringList.Text := LJSONObject.ToJSON;
+      LStringList.Text := LJSONObject.Format(2);
       LStringList.SaveToFile(AFileName);
     finally
       LStringList.Free;
@@ -117,7 +117,7 @@ var
   LStyle: string;
 begin
   { Colors }
-  LJSONObject := AThemeObject['Colors'].ObjectValue;
+  LJSONObject := AThemeObject.ValueObject['Colors'];
 
   GetPropertyArray(FEditor.Colors.ClassInfo);
   try
@@ -126,16 +126,16 @@ begin
       LPPropInfo := LPropertyArray[LIndex];
 
       if LPPropInfo^.PropType^ = TypeInfo(TAlphaColor) then
-        LJSONObject[string(LPPropInfo.Name)] := ColorAsString(TAlphaColor(GetOrdProp(FEditor.Colors, LPPropInfo)))
+        LJSONObject.ValueString[string(LPPropInfo.Name)] := ColorAsString(TAlphaColor(GetOrdProp(FEditor.Colors, LPPropInfo)))
       else
-        LJSONObject[string(LPPropInfo.Name)] := IntegerAsString(LPPropInfo^.PropType^, GetOrdProp(FEditor.Colors, LPPropInfo));
+        LJSONObject.ValueString[string(LPPropInfo.Name)] := IntegerAsString(LPPropInfo^.PropType^, GetOrdProp(FEditor.Colors, LPPropInfo));
     end;
   finally
     ClearPropertyArray;
   end;
   { Fonts and font sizes }
-  LJSONObject := AThemeObject['Fonts'].ObjectValue;
-  LJSONObject2 := AThemeObject['FontSizes'].ObjectValue;
+  LJSONObject := AThemeObject.ValueObject['Fonts'];
+  LJSONObject2 := AThemeObject.ValueObject['FontSizes'];
 
   GetPropertyArray(FEditor.Fonts.ClassInfo);
   try
@@ -145,8 +145,8 @@ begin
 
       LObject := GetObjectProp(FEditor.Fonts, LPPropInfo);
 
-      LJSONObject[string(LPPropInfo.Name)] := TFont(LObject).Family;
-      LJSONObject2[string(LPPropInfo.Name)] := TFont(LObject).Size.ToString;
+      LJSONObject.ValueString[string(LPPropInfo.Name)] := TFont(LObject).Family;
+      LJSONObject2.ValueString[string(LPPropInfo.Name)] := TFont(LObject).Size.ToString;
     end;
   finally
     ClearPropertyArray;
@@ -165,8 +165,8 @@ begin
       if not LStyle.IsEmpty then
       begin
         LJSONObject := LJSONArray.AddObject;
-        LJSONObject['Name'] := string(LPPropInfo.Name);
-        LJSONObject['Style'] := LStyle;
+        LJSONObject.ValueString['Name'] := string(LPPropInfo.Name);
+        LJSONObject.ValueString['Style'] := LStyle;
       end;
     end;
   finally

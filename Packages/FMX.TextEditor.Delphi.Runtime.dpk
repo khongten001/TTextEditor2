@@ -73,7 +73,7 @@ contains
   FMX.TextEditor.Highlighter.Rules in '..\Source\FMX\FMX.TextEditor.Highlighter.Rules.pas',
   FMX.TextEditor.Highlighter.Token in '..\Source\FMX\FMX.TextEditor.Highlighter.Token.pas',
   FMX.TextEditor.InternalImage in '..\Source\FMX\FMX.TextEditor.InternalImage.pas',
-  FMX.TextEditor.JSONDataObjects in '..\Source\FMX\FMX.TextEditor.JSONDataObjects.pas',
+  FMX.TextEditor.JSON.Helper in '..\Source\FMX\FMX.TextEditor.JSON.Helper.pas',
   FMX.TextEditor.KeyCommands in '..\Source\FMX\FMX.TextEditor.KeyCommands.pas',
   FMX.TextEditor.KeyboardHandler in '..\Source\FMX\FMX.TextEditor.KeyboardHandler.pas',
   FMX.TextEditor.KeywordImages in '..\Source\FMX\FMX.TextEditor.KeywordImages.pas',

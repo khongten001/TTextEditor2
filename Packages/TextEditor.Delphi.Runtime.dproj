@@ -177,7 +177,7 @@
         <DCCReference Include="..\Source\TextEditor.Highlighter.Rules.pas"/>
         <DCCReference Include="..\Source\TextEditor.Highlighter.Token.pas"/>
         <DCCReference Include="..\Source\TextEditor.InternalImage.pas"/>
-        <DCCReference Include="..\Source\TextEditor.JSONDataObjects.pas"/>
+        <DCCReference Include="..\Source\TextEditor.JSON.Helper.pas"/>
         <DCCReference Include="..\Source\TextEditor.KeyCommands.pas"/>
         <DCCReference Include="..\Source\TextEditor.KeyboardHandler.pas"/>
         <DCCReference Include="..\Source\TextEditor.KeywordImages.pas"/>

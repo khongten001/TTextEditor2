@@ -208,7 +208,7 @@
                     "CloseOnTerm": true
                   },
                   "TokenRange": {
-                    "Open": "\\\`",
+                    "Open": "\\`",
                     "Close": ""
                   }
                 },

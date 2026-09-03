@@ -208,7 +208,7 @@
         <DCCReference Include="..\Source\FMX\FMX.TextEditor.Highlighter.Rules.pas"/>
         <DCCReference Include="..\Source\FMX\FMX.TextEditor.Highlighter.Token.pas"/>
         <DCCReference Include="..\Source\FMX\FMX.TextEditor.InternalImage.pas"/>
-        <DCCReference Include="..\Source\FMX\FMX.TextEditor.JSONDataObjects.pas"/>
+        <DCCReference Include="..\Source\FMX\FMX.TextEditor.JSON.Helper.pas"/>
         <DCCReference Include="..\Source\FMX\FMX.TextEditor.KeyCommands.pas"/>
         <DCCReference Include="..\Source\FMX\FMX.TextEditor.KeyboardHandler.pas"/>
         <DCCReference Include="..\Source\FMX\FMX.TextEditor.KeywordImages.pas"/>

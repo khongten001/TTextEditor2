@@ -76,7 +76,7 @@ contains
   TextEditor.Highlighter.Rules in '..\Source\TextEditor.Highlighter.Rules.pas',
   TextEditor.Highlighter.Token in '..\Source\TextEditor.Highlighter.Token.pas',
   TextEditor.InternalImage in '..\Source\TextEditor.InternalImage.pas',
-  TextEditor.JSONDataObjects in '..\Source\TextEditor.JSONDataObjects.pas',
+  TextEditor.JSON.Helper in '..\Source\TextEditor.JSON.Helper.pas',
   TextEditor.KeyCommands in '..\Source\TextEditor.KeyCommands.pas',
   TextEditor.KeyboardHandler in '..\Source\TextEditor.KeyboardHandler.pas',
   TextEditor.KeywordImages in '..\Source\TextEditor.KeywordImages.pas',
