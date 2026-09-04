@@ -6,7 +6,7 @@ uses
   System.Classes, System.UITypes, FMX.TextEditor.Glyph, FMX.TextEditor.Scroll.Hint, FMX.TextEditor.Scroll.Shadow, FMX.TextEditor.Types;
 
 const
-  TEXTEDITOR_DEFAULT_SCROLL_OPTIONS = [soAutoDisableScrollButtons, soShowVerticalScrollHint, soWheelClickMove];
+  TEXTEDITOR_DEFAULT_SCROLL_OPTIONS = [soAutoDisableScrollButtons, soMiddleClickAutoscroll, soShowVerticalScrollHint];
 
 type
   TTextEditorScroll = class(TPersistent)

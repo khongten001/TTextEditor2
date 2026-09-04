@@ -13579,7 +13579,8 @@ begin
     end;
   end;
 
-  if soWheelClickMove in FScroll.Options then
+  if soMiddleClickAutoscroll in FScroll.Options then
+  begin
     if (AButton = mbMiddle) and not FMouse.IsScrolling then
     begin
       FMouse.IsScrolling := True;
@@ -13596,6 +13597,7 @@ begin
       Invalidate;
       Exit;
     end;
+  end;
 
   if (X + 4 < FLeftMarginWidth) and (not FRuler.Visible or IsRulerVisible and (Y > FRuler.Height)) then
     DoOnLeftMarginClick(AButton, AShift, X, Y);
