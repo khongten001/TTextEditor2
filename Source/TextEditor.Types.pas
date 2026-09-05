@@ -1,4 +1,4 @@
-unit TextEditor.Types;
+﻿unit TextEditor.Types;
 
 {$I TextEditor.Defines.inc}
 
@@ -260,8 +260,15 @@ type
   TTextEditorHighlighterOption = (hoExecuteBeforePrepare, hoMultiHighlighter);
   TTextEditorHighlighterOptions = set of TTextEditorHighlighterOption;
 
-  TTextEditorHighlightLineItemOption = (hlIgnoreCase, hlMultiline, hlDeleteOnHighlighterLoad);
+  TTextEditorHighlightLineItemOption = (hlIgnoreCase, hlMultiline, hlDeleteOnHighlighterLoad, hlHighlightMatchOnly);
   TTextEditorHighlightLineItemOptions = set of TTextEditorHighlightLineItemOption;
+
+  TTextEditorHighlightLineMatch = record
+    Background: TColor;
+    Foreground: TColor;
+    Index: Integer;
+    Length: Integer;
+  end;
   { Special chars }
   TTextEditorSpecialCharsLineBreakStyle = (eolArrow, eolCRLF, eolEnter, eolPilcrow);
 

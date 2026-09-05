@@ -17176,6 +17176,7 @@ var
 var
   LCustomBackgroundColor, LCustomForegroundColor: TColor;
   LCustomLineColors, LIsLineSelected, LIsSelectionInsideLine: Boolean;
+  LHighlightLineMatches: TArray<TTextEditorHighlightLineMatch>;
   LKeywordImageAttribute: TTextEditorHighlighterAttribute;
   LKeywordImageCount: Integer;
   LKeywordImageDraws: array [0..15] of TTextEditorKeywordImageDraw;
@@ -17279,6 +17280,19 @@ var
         LBackgroundColor := LCustomBackgroundColor;
     end;
 
+    if not AMinimap then
+    for var LIndex := 0 to High(LHighlightLineMatches) do
+    if (LTokenHelper.CharsBefore < LHighlightLineMatches[LIndex].Index - 1 + LHighlightLineMatches[LIndex].Length) and
+      (LTokenHelper.CharsBefore + LTokenHelper.Length > LHighlightLineMatches[LIndex].Index - 1) then
+    begin
+      if LHighlightLineMatches[LIndex].Foreground <> TColors.SysNone then
+        LForegroundColor := LHighlightLineMatches[LIndex].Foreground;
+
+      if LHighlightLineMatches[LIndex].Background <> TColors.SysNone then
+        LBackgroundColor := LHighlightLineMatches[LIndex].Background;
+
+      Break;
+    end;
     LText := LTokenHelper.Text;
     LTokenLength := 0;
     LSelectedTokenLength := 0;
@@ -17741,6 +17755,22 @@ var
         LUnderline := ulNone;
         LUnderlineColor := TColors.SysNone;
 
+        if not AMinimap then
+        for var LIndex := 0 to High(LHighlightLineMatches) do
+        if (LTokenPosition < LHighlightLineMatches[LIndex].Index - 1 + LHighlightLineMatches[LIndex].Length) and
+          (LTokenPosition + LTokenLength > LHighlightLineMatches[LIndex].Index - 1) then
+        begin
+          if LHighlightLineMatches[LIndex].Foreground <> TColors.SysNone then
+            LForegroundColor := LHighlightLineMatches[LIndex].Foreground;
+
+          if LHighlightLineMatches[LIndex].Background <> TColors.SysNone then
+          begin
+            LBackgroundColor := LHighlightLineMatches[LIndex].Background;
+            LIsCustomBackgroundColor := True;
+          end;
+
+          Break;
+        end;
         if Assigned(FEvents.OnCustomTokenAttribute) then
           FEvents.OnCustomTokenAttribute(Self, LTokenText, LCurrentLine, LTokenPosition, LForegroundColor, LBackgroundColor, LFontStyles, LUnderline, LUnderlineColor);
 
@@ -18145,6 +18175,7 @@ var
         LForegroundColor := FColors.EditorForeground;
         LBackgroundColor := GetBackgroundColor;
         LCustomLineColors := False;
+        LHighlightLineMatches := nil;
 
         if FHighlightLine.Active and not LCurrentLineText.IsEmpty then
         for var LIndex := FHighlightLine.Items.Count - 1 downto 0 do
@@ -18162,6 +18193,24 @@ var
 
           LRegEx := TRegex.Create(LItem.Pattern, LRegExOptions);
 
+          if hlHighlightMatchOnly in LItem.Options then
+          begin
+            var LMatch := LRegEx.Match(Copy(LCurrentLineText, 1, FHighlightLine.MaxLineLength));
+
+            while LMatch.Success and (LMatch.Length > 0) do
+            begin
+              var LMatchIndex := Length(LHighlightLineMatches);
+
+              SetLength(LHighlightLineMatches, LMatchIndex + 1);
+              LHighlightLineMatches[LMatchIndex].Background := LItem.Background;
+              LHighlightLineMatches[LMatchIndex].Foreground := LItem.Foreground;
+              LHighlightLineMatches[LMatchIndex].Index := LMatch.Index;
+              LHighlightLineMatches[LMatchIndex].Length := LMatch.Length;
+
+              LMatch := LMatch.NextMatch;
+            end;
+          end
+          else
           if LRegEx.Match(Copy(LCurrentLineText, 1, FHighlightLine.MaxLineLength)).Success then
           begin
             LCustomForegroundColor := LItem.Foreground;

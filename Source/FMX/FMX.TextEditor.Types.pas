@@ -255,8 +255,15 @@ type
   TTextEditorHighlighterOption = (hoExecuteBeforePrepare, hoMultiHighlighter);
   TTextEditorHighlighterOptions = set of TTextEditorHighlighterOption;
 
-  TTextEditorHighlightLineItemOption = (hlIgnoreCase, hlMultiline, hlDeleteOnHighlighterLoad);
+  TTextEditorHighlightLineItemOption = (hlIgnoreCase, hlMultiline, hlDeleteOnHighlighterLoad, hlHighlightMatchOnly);
   TTextEditorHighlightLineItemOptions = set of TTextEditorHighlightLineItemOption;
+
+  TTextEditorHighlightLineMatch = record
+    Background: TAlphaColor;
+    Foreground: TAlphaColor;
+    Index: Integer;
+    Length: Integer;
+  end;
   { Special chars }
   TTextEditorSpecialCharsLineBreakStyle = (eolArrow, eolCRLF, eolEnter, eolPilcrow);
 
