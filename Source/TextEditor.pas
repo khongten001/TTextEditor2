@@ -14291,7 +14291,7 @@ begin
 
   LFoldRange := nil;
 
-  if cfoHighlightFoldingLine in FCodeFolding.Options then
+  if cfoHighlightTreeLine in FCodeFolding.Options then
     LFoldRange := CodeFoldingLineInsideRange(FViewPosition.Row);
 
   for var LIndex := AFirstRow to ALastRow do
@@ -19890,9 +19890,7 @@ begin
   else
   begin
     LSelectionAvailable := GetSelectionAvailable;
-
-    if LSelectionAvailable then
-      LTextPosition := PixelsToTextPosition(LCursorPoint.X, LCursorPoint.Y);
+    LTextPosition := PixelsToTextPosition(LCursorPoint.X, LCursorPoint.Y);
 
     if (eoDragDropEditing in FOptions) and not MouseCapture and LSelectionAvailable and IsTextPositionInSelection(LTextPosition) then
       LNewCursor := crArrow

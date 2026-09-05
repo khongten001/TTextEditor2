@@ -20,6 +20,7 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure Assign(ASource: TPersistent); override;
+    procedure SetOption(const AOption: TTextEditorCodeFoldingHintIndicatorOption; const AEnabled: Boolean);
   published
     property Glyph: TTextEditorGlyph read FGlyph write SetGlyph stored IsGlyphStored;
     property MarkStyle: TTextEditorCodeFoldingHintIndicatorMarkStyle read FMarkStyle write FMarkStyle default imsThreeDots;
@@ -68,6 +69,14 @@ begin
   end
   else
     inherited Assign(ASource);
+end;
+
+procedure TTextEditorCodeFoldingHintIndicator.SetOption(const AOption: TTextEditorCodeFoldingHintIndicatorOption; const AEnabled: Boolean);
+begin
+  if AEnabled then
+    Include(FOptions, AOption)
+  else
+    Exclude(FOptions, AOption);
 end;
 
 function TTextEditorCodeFoldingHintIndicator.IsGlyphStored: Boolean;

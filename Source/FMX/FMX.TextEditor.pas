@@ -13328,7 +13328,7 @@ begin
 
   LFoldRange := nil;
 
-  if cfoHighlightFoldingLine in FCodeFolding.Options then
+  if cfoHighlightTreeLine in FCodeFolding.Options then
     LFoldRange := CodeFoldingLineInsideRange(FViewPosition.Row);
 
   for var LIndex := AFirstRow to ALastRow do

@@ -23,6 +23,7 @@ type
     constructor Create;
     procedure Assign(ASource: TPersistent); override;
     procedure ChangeScale(const AMultiplier, ADivider: Integer);
+    procedure SetOption(const AOption: TTextEditorSearchMapOption; const AEnabled: Boolean);
     function GetWidth: Integer;
   published
     property Align: TTextEditorSearchMapAlign read FAlign write SetAlign default saRight;
@@ -64,6 +65,14 @@ begin
   end
   else
     inherited Assign(ASource);
+end;
+
+procedure TTextEditorSearchMap.SetOption(const AOption: TTextEditorSearchMapOption; const AEnabled: Boolean);
+begin
+  if AEnabled then
+    Include(FOptions, AOption)
+  else
+    Exclude(FOptions, AOption);
 end;
 
 procedure TTextEditorSearchMap.ChangeScale(const AMultiplier, ADivider: Integer);

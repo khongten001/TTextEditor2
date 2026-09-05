@@ -304,7 +304,7 @@ type
   TTextEditorCodeFoldingHintIndicatorOption = (hioShowBorder, hioShowMark);
   TTextEditorCodeFoldingHintIndicatorOptions = set of TTextEditorCodeFoldingHintIndicatorOption;
 
-  TTextEditorCodeFoldingOption = (cfoAutoWidth, cfoFoldMultilineComments, cfoHighlightFoldingLine, cfoHighlightMatchingPair,
+  TTextEditorCodeFoldingOption = (cfoAutoWidth, cfoFoldMultilineComments, cfoHighlightMatchingPair, cfoHighlightTreeLine,
     cfoShowCollapsedLine, cfoShowTreeLine, cfoShowCollapseMarkAtTheEnd, cfoExpandByHintClick);
   TTextEditorCodeFoldingOptions = set of TTextEditorCodeFoldingOption;
 
