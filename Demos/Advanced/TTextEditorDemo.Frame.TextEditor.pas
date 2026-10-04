@@ -46,6 +46,7 @@ type
 {$ENDIF}
     function RunCaretNavigationSeed(ASeed: Integer): string;
     function RunClipboardRoundTripSeed(ASeed: Integer): string;
+    function RunLineBreakIndentSeed(ASeed: Integer): string;
     function RunMacroSeed(ASeed: Integer): string;
     function RunPastEndOfFileSeed(ASeed: Integer): string;
     function RunSaveLoadSeed(ASeed: Integer): string;
@@ -65,6 +66,7 @@ type
     procedure RunCaretNavigationTest;
     procedure RunClipboardRoundTripTest;
     procedure RunHighlighterSweepTest;
+    procedure RunLineBreakIndentTest;
     procedure RunMacroTest(const ARecorder: TCustomEditorMacroRecorder);
     procedure RunPastEndOfFileTest;
     procedure RunSaveLoadTest;
@@ -610,6 +612,113 @@ begin
     RunTestLoop(10000, RunPastEndOfFileSeed);
   finally
     TextEditor.Scroll.Options := LOptions;
+  end;
+end;
+
+function TFrameTextEditor.RunLineBreakIndentSeed(ASeed: Integer): string;
+var
+  LPosition: TTextEditorTextPosition;
+begin
+  Result := '';
+
+  RandSeed := ASeed;
+
+  { Repeated line breaks keep the auto indent with and without trimming - only the abandoned lines differ }
+  var LTrimTrailingSpaces := Odd(ASeed);
+
+  if LTrimTrailingSpaces then
+    TextEditor.Options := TextEditor.Options + [eoTrimTrailingSpaces]
+  else
+    TextEditor.Options := TextEditor.Options - [eoTrimTrailingSpaces];
+
+  if Random(2) = 0 then
+    TextEditor.Scroll.Options := TextEditor.Scroll.Options + [soPastEndOfLine]
+  else
+    TextEditor.Scroll.Options := TextEditor.Scroll.Options - [soPastEndOfLine];
+
+  var LIndent := StringOfChar(' ', Random(8) + 1);
+  var LLineBreakCount := Random(4) + 2;
+  var LDocument := LIndent + 'a1';
+
+  if Random(2) = 0 then
+    LDocument := LDocument + #13#10'b2'#13#10;
+
+  TextEditor.Clear;
+
+  var LStringStream := TStringStream.Create(LDocument);
+  try
+    TextEditor.LoadFromStream(LStringStream);
+  finally
+    LStringStream.Free;
+  end;
+
+  var LOriginalText := TextEditor.Text;
+
+  try
+    LPosition.Char := LIndent.Length + 3;
+    LPosition.Line := 0;
+    TextEditor.TextPosition := LPosition;
+
+    for var LIndex := 1 to LLineBreakCount do
+      TextEditor.ExecuteCommand(TKeyCommands.LineBreak, #0, nil);
+
+    LPosition := TextEditor.TextPosition;
+
+    if (LPosition.Line <> LLineBreakCount) or (LPosition.Char <> LIndent.Length + 1) then
+      Exit('Caret at ' + LPosition.Char.ToString + ', ' + LPosition.Line.ToString + ' lost the indent for RandSeed = ' +
+        ASeed.ToString);
+
+    var LAbandonedLine := '';
+
+    if not LTrimTrailingSpaces then
+      LAbandonedLine := LIndent;
+
+    for var LLine := 1 to LLineBreakCount - 1 do
+    if TextEditor.Lines[LLine] <> LAbandonedLine then
+      Exit('Abandoned line ' + LLine.ToString + ' is [' + TextEditor.Lines[LLine] + '] for RandSeed = ' + ASeed.ToString);
+
+    TextEditor.ExecuteCommand(TKeyCommands.Char, 'w', nil);
+
+    if TextEditor.Lines[LLineBreakCount] <> LIndent + 'w' then
+      Exit('Typed line is [' + TextEditor.Lines[LLineBreakCount] + '] for RandSeed = ' + ASeed.ToString);
+
+    var LFinalText := TextEditor.Text;
+
+    while TextEditor.CanUndo do
+      TextEditor.ExecuteCommand(TKeyCommands.Undo, #0, nil);
+
+    if TextEditor.Text <> LOriginalText then
+      Exit('Failed Undo for RandSeed = ' + ASeed.ToString);
+
+    while TextEditor.CanRedo do
+      TextEditor.ExecuteCommand(TKeyCommands.Redo, #0, nil);
+
+    if TextEditor.Text <> LFinalText then
+      Exit('Failed Redo for RandSeed = ' + ASeed.ToString);
+  except
+    on E: Exception do
+      Exit(E.ClassName + ': ' + E.Message + ' for RandSeed = ' + ASeed.ToString);
+  end;
+end;
+
+procedure TFrameTextEditor.RunLineBreakIndentTest;
+var
+  LOptions: TTextEditorOptions;
+  LScrollOptions: TTextEditorScrollOptions;
+  LTabOptions: TTextEditorTabOptions;
+begin
+  LOptions := TextEditor.Options;
+  LScrollOptions := TextEditor.Scroll.Options;
+  LTabOptions := TextEditor.Tabs.Options;
+
+  TextEditor.Options := TextEditor.Options + [eoAutoIndent];
+  TextEditor.Tabs.Options := TextEditor.Tabs.Options + [toTabsToSpaces];
+  try
+    RunTestLoop(10000, RunLineBreakIndentSeed);
+  finally
+    TextEditor.Options := LOptions;
+    TextEditor.Scroll.Options := LScrollOptions;
+    TextEditor.Tabs.Options := LTabOptions;
   end;
 end;
 

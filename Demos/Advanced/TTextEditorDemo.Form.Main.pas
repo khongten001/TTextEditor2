@@ -33,6 +33,7 @@ type
     ActionTestCaretNavigation: TAction;
     ActionTestClipboardRoundTrip: TAction;
     ActionTestHighlighterSweep: TAction;
+    ActionTestLineBreakIndent: TAction;
     ActionTestMacro: TAction;
     ActionTestPastEndOfFile: TAction;
     ActionTestSaveLoad: TAction;
@@ -85,6 +86,7 @@ type
     procedure ActionTestCaretNavigationExecute(Sender: TObject);
     procedure ActionTestClipboardRoundTripExecute(Sender: TObject);
     procedure ActionTestHighlighterSweepExecute(Sender: TObject);
+    procedure ActionTestLineBreakIndentExecute(Sender: TObject);
     procedure ActionTestMacroExecute(Sender: TObject);
     procedure ActionTestPastEndOfFileExecute(Sender: TObject);
     procedure ActionTestSaveLoadExecute(Sender: TObject);
@@ -742,6 +744,11 @@ end;
 procedure TMainForm.ActionTestPastEndOfFileExecute(Sender: TObject);
 begin
   FFrameTextEditor.RunPastEndOfFileTest;
+end;
+
+procedure TMainForm.ActionTestLineBreakIndentExecute(Sender: TObject);
+begin
+  FFrameTextEditor.RunLineBreakIndentTest;
 end;
 
 procedure TMainForm.ActionTestMacroExecute(Sender: TObject);

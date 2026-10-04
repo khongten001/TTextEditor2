@@ -647,6 +647,10 @@ object MainForm: TMainForm
                 Caption = 'Test &past end of file/line'
               end
               item
+                Action = ActionTestLineBreakIndent
+                Caption = 'Test &line break indent'
+              end
+              item
                 Action = ActionTestWordSelection
                 Caption = 'Test &word selection'
               end>
@@ -777,6 +781,11 @@ object MainForm: TMainForm
       Category = 'Test'
       Caption = 'Test past end of file/line'
       OnExecute = ActionTestPastEndOfFileExecute
+    end
+    object ActionTestLineBreakIndent: TAction
+      Category = 'Test'
+      Caption = 'Test line break indent'
+      OnExecute = ActionTestLineBreakIndentExecute
     end
     object ActionTestWordSelection: TAction
       Category = 'Test'

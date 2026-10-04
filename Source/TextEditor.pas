@@ -6708,11 +6708,12 @@ procedure TCustomTextEditor.DoLineBreak(const AAddSpaceBuffer: Boolean = True);
   end;
 
 var
-  LTextPosition: TTextEditorTextPosition;
+  LTextPosition, LLineBreakPosition: TTextEditorTextPosition;
   LLineText: string;
   LLength: Integer;
   LSpaceCount1: Integer;
   LSpaceBuffer: string;
+  LIndentOnly: Boolean;
 begin
   LTextPosition := TextPosition;
 
@@ -6729,9 +6730,17 @@ begin
 
     FUndoList.AddChange(crCaret, LTextPosition, LTextPosition, LTextPosition, '', smNormal);
 
-    DoTrimTrailingSpaces(LTextPosition.Line);
-
     LLineText := FLines[LTextPosition.Line];
+    LIndentOnly := AAddSpaceBuffer and (eoAutoIndent in FOptions) and (eoTrimTrailingSpaces in FOptions) and not LLineText.IsEmpty and
+      TextEditor.Utils.TrimRight(LLineText).IsEmpty;
+
+    if not LIndentOnly then
+    begin
+      DoTrimTrailingSpaces(LTextPosition.Line);
+
+      LLineText := FLines[LTextPosition.Line];
+    end;
+
     LLength := LLineText.Length;
 
     if LLength > 0 then
@@ -6745,6 +6754,31 @@ begin
           Include(Flags, sfLineBreakLF);
       end;
 
+      if LIndentOnly then
+      begin
+        LLineBreakPosition := GetPosition(1, LTextPosition.Line);
+
+        AddUndoDelete(LLineBreakPosition, LLineBreakPosition, GetPosition(LLength + 1, LTextPosition.Line), LLineText, smNormal);
+
+        FLines[LTextPosition.Line] := '';
+        FLines.Insert(LTextPosition.Line + 1, LLineText);
+
+        FUndoList.AddChange(crLineBreak, LLineBreakPosition, LLineBreakPosition, GetPosition(1, LTextPosition.Line + 1), '', smNormal);
+
+        LTextPosition.Char := Min(LTextPosition.Char, LLength + 1);
+        Inc(LTextPosition.Line);
+
+        AddUndoInsert(LTextPosition, GetPosition(1, LTextPosition.Line), GetPosition(LLength + 1, LTextPosition.Line), LLineText, smNormal);
+
+        FUndoList.AddChange(crCaret, LTextPosition, LTextPosition, LTextPosition, '', smNormal);
+
+        with FLines do
+        begin
+          LineState[LTextPosition.Line - 1] := lsModified;
+          LineState[LTextPosition.Line] := lsModified;
+        end;
+      end
+      else
       if LLength >= LTextPosition.Char then
       begin
         if LTextPosition.Char > 1 then
